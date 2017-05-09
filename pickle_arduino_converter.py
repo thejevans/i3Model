@@ -30,7 +30,7 @@ def eventToArray (event, maxBrightness, frames):
     tbin       = np.arange(len(event.T[0])) / int(round(len(event.T[0]) / frames))
     wavelength = (700. - 300. * tbin / frames).astype(int)
 
-    eventArray = np.array(None)
+    eventArray = np.array()
 
     for i, pulse in enumerate(event):
         [r, g, b] = wav2RGB(wavelength[i])
@@ -140,7 +140,6 @@ for i, event in enumerate(all_events):
     for item in eventToArray(event, max_brightness, frames):
         output.write("%s\n" % item)
     output.write("x\n")
-
     nth += 1
 
 output.close()
