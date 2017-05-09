@@ -16,7 +16,8 @@ import numpy as np
 ##### Converts from DOM/String format to LED value
 ##################################################################################
 def flatten (dom, string):
-
+    if string % 2 == 0: dom = 60 - dom
+    led = dom * string
     return led
 
 ##################################################################################
