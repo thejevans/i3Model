@@ -129,6 +129,7 @@ if nevents == 0: nevents = len(all_events)
 
 max_brightness = 100. ## set max brightness to avoid burning the LEDs
 frames = 32.
+nth = 0
 
 ##################################################################################
 ##### Send events to text file: hit = [time, dom, string, charge]
