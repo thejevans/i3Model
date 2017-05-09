@@ -137,8 +137,9 @@ nth = 0
 for i, event in enumerate(all_events):
     if nth == nevents: break
 
-    output.write(eventToArray(event, max_brightness, frames))
-    output.write("\nx\n")
+    for item in eventToArray(event, max_brightness, frames):
+        output.write("%s\n" % item)
+    output.write("x\n")
 
     nth += 1
 
