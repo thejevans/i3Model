@@ -4,7 +4,7 @@ from __future__ import print_function
 #### python command:
 #### python pickle_arduino_converter.py --nevents <num of events to display>
 ####                                    --infile <input pickled files>
-####                                    --outfile <output text file>
+####                                    --outfile <output i3rgb file>
 ######################################################################################
 
 from optparse import OptionParser
@@ -39,7 +39,7 @@ def eventToArray (event, maxBrightness, frames):
         g  *= brightness[i]
         b  *= brightness[i]
         led = flatten(pulse[1], pulse[2])
-        
+
         if (r > 0) or (g > 0) or (b > 0):
             eventArray = np.append(eventArray, [led, r, g, b])
 
@@ -99,7 +99,7 @@ def wav2RGB(wavelength):
 ##################################################################################
 ##### Parsing variables
 ##################################################################################
-usage  = "%prog [options] --infile <input pickled file> --outfile <output text file> --nevents <num of events>"
+usage  = "%prog [options] --infile <input pickled file> --outfile <output i3rgb file> --nevents <num of events>"
 parser = OptionParser(usage = usage)
 
 parser.add_option("-n", "--nevents", type = "int", default = 0,
@@ -108,7 +108,7 @@ parser.add_option("-i", "--infile", type = "string",
                   default = './events.p',
                   help = "pickled file of all events")
 parser.add_option("-o", "--outfile", type = "string",
-                  default = './events.txt',
+                  default = './events.i3rgb',
                   help = "text file of LED instructions")
 
 (options, args) = parser.parse_args()
@@ -141,6 +141,7 @@ for i, event in enumerate(all_events):
     for item in eventToArray(event, max_brightness, frames):
         output.write("%s\n" % item)
     output.write("x\n")
+
     nth += 1
 
 output.close()

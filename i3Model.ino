@@ -26,6 +26,9 @@ Adafruit_FT6206 ts = Adafruit_FT6206();
 #define BOXSTART_Y 220
 #define BOXSTART_Y2 270
 
+// Set maximum brightness
+#define MAX_BRIGHT 100
+
 // Set pin for SD card
 const int chipSelect = 4;
 
@@ -226,6 +229,80 @@ void setStringColor(int stringNum, byte r, byte g, byte b) {
   }
   Serial.println("lights");
   pixels.show();
+}
+
+void clearPixels() {
+  for(int i = 0; i < NUMPIXELS; i++) {
+    pixels.setPixelColor(i, 0, 0, 0);
+  }
+}
+
+void displayEvents(String filename, int wait) {
+  int event = 1;
+  int frame = 1;
+  char val[20];
+  int led;
+  int r;
+  int g;
+  int b;
+  int pos = 0;
+  int i = 0;
+  File file = SD.open(filename);
+
+  make_h_menu(0);
+
+  tft.setCursor(10, 10);
+  tft.setTextSize(1);
+  tft.setTextColor(ILI9341_WHITE);
+  tft.print(filename);
+  tft.setCursor(10, 10+8);
+  tft.print("event: " + event);
+  tft.setCursor(10, 10+8+8);
+  tft.print("frame: " + frame);
+
+  while(file.available()) {
+    i = 0;
+    memset(val, 0, sizeof(val));
+    while(val[i-1] != '\n') {
+      val[i] = file.read();
+      i++;
+    }
+    if(val == 'n') {
+      frame++;
+      pixels.show();
+      //add display update
+      pos = 0;
+    }
+    else if(val == 'x') {
+      event++;
+      clearPixels();
+      //add display update
+      pos = 0;
+    }
+    else if(pos == 0) {
+      led = atoi(val);
+      pos++;
+    }
+    else if(pos == 1) {
+      r = atoi(val);
+      pos++;
+    }
+    else if(pos == 2) {
+      g = atoi(val);
+      pos++;
+    }
+    else if(pos == 3) {
+      b = atoi(val);
+      pos++;
+    }
+    if(pos == 4) {
+      ir = min(r, MAX_BRIGHT);
+      ig = min(g, MAX_BRIGHT);
+      ib = min(b, MAX_BRIGHT);
+      pixels.setPixelColor(led, ir, ig, ib);
+      pos = 0;
+    }
+  }
 }
 
 void make_h_menu(int selection) {
