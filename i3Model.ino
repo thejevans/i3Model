@@ -51,6 +51,9 @@ int isEventFile[255];
 // Switch for pausing events or tests
 bool paused = false;
 
+// Switch for stopping events or tests
+bool stopped = false;
+
 // True if event or test is playing or paused. False if no event or test running
 bool playing = false;
 
@@ -114,7 +117,7 @@ void setup() {
   make_h_menu(0);
 }
 
-// Handles touch event
+// Handles touch events
 TS_Point boop() {
   TS_Point p;
   if (ts.touched()) {
@@ -153,8 +156,13 @@ void loop() {
     }
     else if (p.x >= BOXSTART_X2 && p.x <= BOXSTART_X2 + BOXSIZE * 2) {
       if (p.y >= BOXSTART_Y && p.y <= BOXSTART_Y2 - 10) {
+        if(paused) {
+          stopped = true;
+        }
+        else if(playing){
+          paused = true; // If playing, pause
+        }
         make_h_menu(2); // Pause button selected
-        paused = true; // If playing, pause
       }
       else if (p.y >= BOXSTART_Y2 && p.y <= BOXSTART_Y2 + BOXSIZE) {
         make_h_menu(4); // Test button selected
@@ -164,8 +172,8 @@ void loop() {
     break;
 
     case 2: // File menu
-    if (p.x >= BOXSTART_X && p.x <= BOXSTART_X2 - 10) {
-      if (p.y >= BOXSTART_Y2 && p.y <= BOXSTART_Y2 + BOXSIZE) { // Back button selected
+    if (p.y >= BOXSTART_Y2 && p.y <= BOXSTART_Y2 + BOXSIZE) {
+      if (p.x >= BOXSTART_X && p.x <= BOXSTART_X2 - 10) { // Back button selected
         if (page >= 2) { // If not on first page, display previous page
           page = page - 1; // Move back one page
           make_file_menu(page, 1);
@@ -177,8 +185,8 @@ void loop() {
         }
       }
     }
-    else if (p.x >= BOXSTART_X2 && p.x <= BOXSTART_X2 + BOXSIZE * 2) {
-      if (p.y >= BOXSTART_Y2 && p.y <= BOXSTART_Y2 + BOXSIZE) { // Next button selected
+    else if (p.y >= BOXSTART_Y2 && p.y <= BOXSTART_Y2 + BOXSIZE) {
+      if (p.x >= BOXSTART_X2 && p.x <= BOXSTART_X2 + BOXSIZE * 2) { // Next button selected
         if (page <= lastFile/25) { //If on last page, do nothing
           page = page + 1; // Move forward one page
           make_file_menu(page, 2);
@@ -191,7 +199,7 @@ void loop() {
           int j = 10 + 8 * (i % 25);
           if(p.y >= j && p.y <= j + 1) {
             page = 1;
-            displayEvents(fileNames[i,0], WAIT);
+            displayEvents(fileNames[i,0]);
           }
         }
       }
@@ -220,6 +228,13 @@ void led_test() {
     loop();
     while (paused) {
       loop();
+    }
+    if(stopped) {
+      stopped = false;
+      playing = false;
+      clearPixels();
+      make_h_menu(0);
+      return;
     }
     tft.setCursor(10, base + 8 * (i + 1));
     tft.print("String ");
@@ -256,7 +271,7 @@ void clearPixels() {
   }
 }
 
-void displayEvents(String filename, int wait) {
+void displayEvents(String filename) {
   while(playing) {
     return;
   }
@@ -290,6 +305,13 @@ void displayEvents(String filename, int wait) {
     while (paused) {
       loop();
     }
+    if(stopped) {
+      stopped = false;
+      playing = false;
+      clearPixels();
+      make_h_menu(0);
+      return;
+    }
     i = 0;
     memset(val, 0, sizeof(val));
     while(val[i-1] != '\n') {
@@ -299,6 +321,7 @@ void displayEvents(String filename, int wait) {
     if(val == 'n') {
       frame++;
       pixels.show();
+      delay(WAIT);
       //add display update
       pos = 0;
     }
