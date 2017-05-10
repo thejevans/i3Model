@@ -5,6 +5,7 @@ from __future__ import print_function
 #### python pickle_arduino_converter.py --nevents <num of events to display>
 ####                                    --infile <input pickled files>
 ####                                    --outfile <output i3rgb file>
+####                                    --frames <number of frames in animation>
 ######################################################################################
 
 from optparse import OptionParser
@@ -16,7 +17,8 @@ import numpy as np
 ##### Converts from DOM/String format to LED value
 ##################################################################################
 def flatten (dom, string):
-    if string % 2 == 0: dom = 60 - dom
+    # Add string modifiers
+    if string % 2 == 1: dom = 60 - dom
     led = dom * string
     return led
 
@@ -99,7 +101,7 @@ def wav2RGB(wavelength):
 ##################################################################################
 ##### Parsing variables
 ##################################################################################
-usage  = "%prog [options] --infile <input pickled file> --outfile <output i3rgb file> --nevents <num of events>"
+usage  = "%prog [options] --infile <input pickled file> --outfile <output i3rgb file> --nevents <num of events> --frames <num of frames>"
 parser = OptionParser(usage = usage)
 
 parser.add_option("-n", "--nevents", type = "int", default = 0,
@@ -110,11 +112,14 @@ parser.add_option("-i", "--infile", type = "string",
 parser.add_option("-o", "--outfile", type = "string",
                   default = './events.i3rgb',
                   help = "text file of LED instructions")
+parser.add_option("-f", "--frames", type = "int", default = 32,
+                  help = "number of frames in animation")
 
 (options, args) = parser.parse_args()
 infile          = options.infile
 outfile         = options.outfile
 nevents         = options.nevents
+frames          = options.frames
 
 print ('in_file: {0}'.format(infile))
 print ('out_file: {0}'.format(outfile))
@@ -129,7 +134,6 @@ output     = open(outfile, 'w')
 if nevents == 0: nevents = len(all_events)
 
 max_brightness = 100. ## set max brightness to avoid burning the LEDs
-frames = 32.
 nth = 0
 
 ##################################################################################

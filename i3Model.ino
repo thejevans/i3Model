@@ -26,8 +26,17 @@ Adafruit_FT6206 ts = Adafruit_FT6206();
 #define BOXSTART_Y 220
 #define BOXSTART_Y2 270
 
+// Set gap between frames
+#define WAIT 0
+
 // Set maximum brightness
 #define MAX_BRIGHT 100
+
+// Which pin on the Arduino is connected to the NeoPixels?
+#define PIN 12
+
+// We have 78 strings x 60 doms/string = 4680 total doms NeoPixels are attached to the Arduino.
+#define NUMPIXELS 4680
 
 // Set pin for SD card
 const int chipSelect = 4;
@@ -37,6 +46,7 @@ int page = 1;
 File root;
 String fileNames[255, 2];
 int lastFile = 0;
+int isEventFile[255];
 
 // Switch for pausing events or tests
 bool paused = false;
@@ -46,12 +56,6 @@ bool playing = false;
 
 //0 = none; 1 = h_menu; 2 = file_menu
 int activeMenu = 0;
-
-// Which pin on the Arduino is connected to the NeoPixels?
-#define PIN            12
-
-// we have 78 strings x 60 doms/string = 4680 total doms NeoPixels are attached to the Arduino.
-#define NUMPIXELS      4680
 
 // When we setup the NeoPixel library, we tell it how many pixels, and which pin to use to send signals.
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
@@ -88,17 +92,21 @@ void setup() {
     fileNames[i,0] = "";
     fileNames[i,1] = "";
     k = entry.name();
+    isEventFile[i] = 0;
     if (!entry.isDirectory()) {
       k = k + "\t\t\t\t\t\t\t";
       k = k + entry.size();
+      if (k.subString(k.indexOf('.')) == "i3rgb") {
+        isEventFile[i] = 1;
+      }
     }
     else {
       fileNames[i,1] = "1";
     }
     fileNames[i,0] = k;
     entry = root.openNextFile();
-    i = i + 1;
-    lastFile = lastFile + 1;
+    i++;
+    lastFile++;
   }
   root.rewindDirectory();
 
@@ -177,6 +185,17 @@ void loop() {
         }
       }
     }
+    else {
+      for(int i = 0; i < lastFile; i++) {
+        if(isEventFile[i] == 1) {
+          int j = 10 + 8 * (i % 25);
+          if(p.y >= j && p.y <= j + 1) {
+            page = 1;
+            displayEvents(fileNames[i,0], WAIT);
+          }
+        }
+      }
+    }
     break;
 
     default:
@@ -238,6 +257,12 @@ void clearPixels() {
 }
 
 void displayEvents(String filename, int wait) {
+  while(playing) {
+    return;
+  }
+  paused = false;
+  playing = true;
+
   int event = 1;
   int frame = 1;
   char val[20];
@@ -261,6 +286,10 @@ void displayEvents(String filename, int wait) {
   tft.print("frame: " + frame);
 
   while(file.available()) {
+    loop();
+    while (paused) {
+      loop();
+    }
     i = 0;
     memset(val, 0, sizeof(val));
     while(val[i-1] != '\n') {
@@ -424,7 +453,6 @@ void displayFiles(int page) {
   tft.setTextColor(ILI9341_WHITE);
   tft.print("page ");
   tft.print(page);
-
   tft.setCursor(10, 10);
 
   while (i <= 25 * page) {
@@ -437,7 +465,7 @@ void displayFiles(int page) {
       break;
     }
 
-    if (filenames[i,0].subString(filenames[i,0].indexOf('.')) == "i3rgb") {
+    if (isEventFile[i] == 1) {
       tft.setTextColor(ILI9341_GREEN);
     }
 
@@ -447,6 +475,6 @@ void displayFiles(int page) {
 
     tft.print(fileNames[i,0]);
 
-    i = i + 1;
+    i++;
   }
 }
