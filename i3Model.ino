@@ -44,7 +44,7 @@ const int chipSelect = 4;
 // Global variables for file management
 int page = 1;
 File root;
-String fileNames[255, 2];
+String fileNames[255][2];
 int lastFile = 0;
 int isEventFile[255];
 
@@ -92,21 +92,22 @@ void setup() {
   int i = 0;
   String k = "";
   while(entry) {
-    fileNames[i,0] = "";
-    fileNames[i,1] = "";
+    fileNames[i][0] = "";
+    fileNames[i][1] = "";
     k = entry.name();
     isEventFile[i] = 0;
     if (!entry.isDirectory()) {
+      if (k.substring(k.indexOf('.')) == ".I3R") {
+        isEventFile[i] = 1;
+        Serial.println(k);
+      }
       k = k + "\t\t\t\t\t\t\t";
       k = k + entry.size();
-      if (k.subString(k.indexOf('.')) == "i3rgb") {
-        isEventFile[i] = 1;
-      }
     }
     else {
-      fileNames[i,1] = "1";
+      fileNames[i][1] = "1";
     }
-    fileNames[i,0] = k;
+    fileNames[i][0] = k;
     entry = root.openNextFile();
     i++;
     lastFile++;
@@ -157,6 +158,7 @@ void loop() {
     else if (p.x >= BOXSTART_X2 && p.x <= BOXSTART_X2 + BOXSIZE * 2) {
       if (p.y >= BOXSTART_Y && p.y <= BOXSTART_Y2 - 10) {
         if(paused) {
+          paused = false;
           stopped = true;
         }
         else if(playing){
@@ -184,10 +186,8 @@ void loop() {
           make_h_menu(0);
         }
       }
-    }
-    else if (p.y >= BOXSTART_Y2 && p.y <= BOXSTART_Y2 + BOXSIZE) {
-      if (p.x >= BOXSTART_X2 && p.x <= BOXSTART_X2 + BOXSIZE * 2) { // Next button selected
-        if (page <= lastFile/25) { //If on last page, do nothing
+      else if (p.x >= BOXSTART_X2 && p.x <= BOXSTART_X2 + BOXSIZE * 2) { // Next button selected
+        if (page <= lastFile/25 + 1) { //If on last page, do nothing
           page = page + 1; // Move forward one page
           make_file_menu(page, 2);
         }
@@ -197,9 +197,10 @@ void loop() {
       for(int i = 0; i < lastFile; i++) {
         if(isEventFile[i] == 1) {
           int j = 10 + 8 * (i % 25);
-          if(p.y >= j && p.y <= j + 1) {
+          if(p.y >= j && p.y <= j + 8) {
             page = 1;
-            displayEvents(fileNames[i,0]);
+            Serial.println("EVENT SELECTED");
+            displayEvents(fileNames[i][0]);
           }
         }
       }
@@ -296,9 +297,11 @@ void displayEvents(String filename) {
   tft.setTextColor(ILI9341_WHITE);
   tft.print(filename);
   tft.setCursor(10, 10+8);
-  tft.print("event: " + event);
+  tft.print("event: ");
+  tft.print(event);
   tft.setCursor(10, 10+8+8);
-  tft.print("frame: " + frame);
+  tft.print("frame: ");
+  tft.print(frame);
 
   while(file.available()) {
     loop();
@@ -318,14 +321,14 @@ void displayEvents(String filename) {
       val[i] = file.read();
       i++;
     }
-    if(val == 'n') {
+    if(val[0] == 'n') {
       frame++;
       pixels.show();
       delay(WAIT);
       //add display update
       pos = 0;
     }
-    else if(val == 'x') {
+    else if(val[0] == 'x') {
       event++;
       clearPixels();
       //add display update
@@ -348,9 +351,9 @@ void displayEvents(String filename) {
       pos++;
     }
     if(pos == 4) {
-      ir = min(r, MAX_BRIGHT);
-      ig = min(g, MAX_BRIGHT);
-      ib = min(b, MAX_BRIGHT);
+      int ir = min(r, MAX_BRIGHT);
+      int ig = min(g, MAX_BRIGHT);
+      int ib = min(b, MAX_BRIGHT);
       pixels.setPixelColor(led, ir, ig, ib);
       pos = 0;
     }
@@ -492,11 +495,11 @@ void displayFiles(int page) {
       tft.setTextColor(ILI9341_GREEN);
     }
 
-    else if (fileNames[i,1] == "1") {
+    else if (fileNames[i][1] == "1") {
       tft.setTextColor(ILI9341_BLUE);
     }
 
-    tft.print(fileNames[i,0]);
+    tft.print(fileNames[i][0]);
 
     i++;
   }
