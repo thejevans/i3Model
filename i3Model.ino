@@ -57,6 +57,9 @@ bool stopped = false;
 // True if event or test is playing or paused. False if no event or test running
 bool playing = false;
 
+// False if continually pressing touchscreen
+bool released = true;
+
 //0 = none; 1 = h_menu; 2 = file_menu
 int activeMenu = 0;
 
@@ -101,8 +104,8 @@ void setup() {
         isEventFile[i] = 1;
         Serial.println(k);
       }
-      k = k + "\t\t\t\t\t\t\t";
-      k = k + entry.size();
+      //k = k + "\t\t\t\t\t\t\t";
+      //k = k + entry.size();
     }
     else {
       fileNames[i][1] = "1";
@@ -122,6 +125,7 @@ void setup() {
 TS_Point boop() {
   TS_Point p;
   if (ts.touched()) {
+    released = false;
     Serial.println("boop!");
     p = ts.getPoint();
     p.x = -(p.x - 240);
@@ -129,6 +133,9 @@ TS_Point boop() {
     Serial.println(p.x);
     Serial.println(p.y);
     return p;
+  }
+  else {
+    released = true;
   }
   p.x = 0;
   p.y = 0;
@@ -322,6 +329,7 @@ void displayEvents(String filename) {
       i++;
     }
     if(val[0] == 'n') {
+      Serial.println("END OF FRAME");
       frame++;
       pixels.show();
       delay(WAIT);
@@ -329,6 +337,7 @@ void displayEvents(String filename) {
       pos = 0;
     }
     else if(val[0] == 'x') {
+      Serial.println("END OF EVENT");
       event++;
       clearPixels();
       //add display update
@@ -336,21 +345,25 @@ void displayEvents(String filename) {
     }
     else if(pos == 0) {
       led = atoi(val);
+      Serial.print(led);
+      Serial.print(" ");
       pos++;
     }
     else if(pos == 1) {
       r = atoi(val);
+      Serial.print(r);
+      Serial.print(" ");
       pos++;
     }
     else if(pos == 2) {
       g = atoi(val);
+      Serial.print(g);
+      Serial.print(" ");
       pos++;
     }
     else if(pos == 3) {
       b = atoi(val);
-      pos++;
-    }
-    if(pos == 4) {
+      Serial.println(b);
       int ir = min(r, MAX_BRIGHT);
       int ig = min(g, MAX_BRIGHT);
       int ib = min(b, MAX_BRIGHT);
