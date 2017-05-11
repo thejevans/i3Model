@@ -219,13 +219,14 @@ void loop() {
   }
 }
 
+// Tests each string with all 3 solid colors and a gradient to make sure that all leds are working and to help with mapping
 void led_test() {
-  while(playing) {
+  while(playing) { // if something is already playing, exit led_test()
     return;
   }
   paused = false;
   playing = true;
-  tft.fillRect(0, 0, 240, 218, ILI9341_BLACK);
+  tft.fillRect(0, 0, 240, 218, ILI9341_BLACK); // Clear screen above buttons
   tft.setCursor(10, 10);
   tft.setTextSize(1);
   tft.setTextColor(ILI9341_WHITE);
@@ -233,11 +234,11 @@ void led_test() {
   tft.setCursor(10, 10+8);
   int base = 10;
   for(int i = 0; i < 78; i++) {
-    loop();
-    while (paused) {
+    loop(); // Run loop to check for touch event
+    while (paused) { // If paused, wait until unpaused
       loop();
     }
-    if(stopped) {
+    if(stopped) { // If stopped, clear pixels, clear screen, exit led_test()
       stopped = false;
       playing = false;
       clearPixels();
@@ -247,29 +248,52 @@ void led_test() {
     tft.setCursor(10, base + 8 * (i + 1));
     tft.print("String ");
     tft.print(i);
-    tft.print(" RED ");
-    setStringColor(i, 255, 0, 0);
+    tft.print(": RED ");
+    setStringColor(i, 255, 0, 0); // Sets string to red
     tft.print("GREEN ");
-    setStringColor(i, 0, 255, 0);
-    tft.print("BLUE");
-    setStringColor(i, 0, 0, 255);
+    setStringColor(i, 0, 255, 0); // Sets string to green
+    tft.print("BLUE ");
+    setStringColor(i, 0, 0, 255); // Sets string to blue
+    tft.print("GRAD");
+    setStringGrad(i, 255, 0, 0, 0, 0, 255); // Displays a gradient from red to blue
     setStringColor(i, 0, 0, 0);
-    if(i % 25 == 24) {
+    if(i % 25 == 24) { // If output fills screen, clear screen and set cursor to top again
       tft.fillRect(10, 18, 230, 200, ILI9341_BLACK);
       base = base - 200;
     }
   }
   tft.setCursor(10, base + 8 * 79);
   tft.print("Done!");
-  playing = false;
+  playing = false; // No longer playing
 }
 
+// Displays a solid color on a given string
 void setStringColor(int stringNum, byte r, byte g, byte b) {
-  int startPos = stringNum * 60;
-  for(int i = startPos; i < startPos + 60; i++) {
-    pixels.setPixelColor(i, r, g, b);
+  int startPos = stringNum * 60; // sets start at beginning of string
+  for(int i = 0; i < 60; i++) {
+    pixels.setPixelColor(i + startPos, r, g, b);
   }
-  Serial.println("lights");
+  Serial.print("string ");
+  Serial.print(stringNum);
+  Serial.println(": solid");
+  pixels.show();
+}
+
+// Displays a gradient on a given string
+void setStringGrad(int stringNum, byte ir, byte ig, byte ib, byte fr, byte fg, byte fb) {
+  int startPos = stringNum * 60; // sets start at beginning of string
+  byte r;
+  byte g;
+  byte b;
+  for(int i = 0; i < 60; i++) {
+    r = min(255, (int) r + (ir - fr) / 60); // steps from initial red to final red
+    g = min(255, (int) g + (ig - fg) / 60); // steps from initial green to final green
+    r = min(255, (int) b + (ib - fb) / 60); // steps from initial blue to final blue
+    pixels.setPixelColor(i + startPos, ir, ig, ib);
+  }
+  Serial.print("string ");
+  Serial.print(stringNum);
+  Serial.println(": gradient");
   pixels.show();
 }
 
