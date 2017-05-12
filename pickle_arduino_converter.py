@@ -29,8 +29,8 @@ def flatten (dom, string):
 ##### Converts event to Array
 ##################################################################################
 def eventToArray (event, maxBrightness, frames):
-    max_charge = max(event.T[3])
-    brightness = (event.T[3] * maxBrightness / max_charge).astype(int)
+    max_charge = np.sqrt(max(event.T[3]))
+    brightness = (np.sqrt(event.T[3]) * maxBrightness / max_charge).astype(int)
 
     tbin       = np.arange(len(event.T[0])) / int(round(len(event.T[0]) / frames))
     wavelength = (700. - 300. * tbin / frames).astype(int)
@@ -46,7 +46,7 @@ def eventToArray (event, maxBrightness, frames):
         led = flatten(pulse[1], pulse[2])
 
         if (r > 0) or (g > 0) or (b > 0):
-            eventArray = np.append(eventArray, [led, r, g, b])
+            eventArray = np.append(eventArray, [led, int(r), int(g), int(b)])
 
         if (i==len(event)-1) or (not wavelength[i]==wavelength[i+1]):
             eventArray = np.append(eventArray, ['n'])
@@ -99,7 +99,7 @@ def wav2RGB(wavelength):
     else:
         SSS = 0.0
 
-    return [int(SSS*R), int(SSS*G), int(SSS*B)]
+    return [SSS*R, SSS*G, SSS*B]
 
 ##################################################################################
 ##### Parsing variables
@@ -113,7 +113,7 @@ parser.add_option("-i", "--infile", type = "string",
                   default = './events.p',
                   help = "pickled file of all events")
 parser.add_option("-o", "--outfile", type = "string",
-                  default = './events.i3rgb',
+                  default = './events.I3R',
                   help = "text file of LED instructions")
 parser.add_option("-f", "--frames", type = "int", default = 32,
                   help = "number of frames in animation")
