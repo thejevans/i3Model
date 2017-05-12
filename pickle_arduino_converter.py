@@ -17,7 +17,7 @@ import numpy as np
 ##### Converts from DOM/String format to LED value
 ##################################################################################
 def flatten (dom, string):
-    string = string % 2 + 1
+    #string = string % 2 + 1
     if string % 2 == 1:
         led = 60 * string - dom
     else:
@@ -36,6 +36,8 @@ def eventToArray (event, maxBrightness, frames):
     wavelength = (700. - 300. * tbin / frames).astype(int)
 
     eventArray = np.array([])
+
+    event.T[2] = event.T[2] % 2 + 1
 
     for i, pulse in enumerate(event):
         [r, g, b] = wav2RGB(wavelength[i])
