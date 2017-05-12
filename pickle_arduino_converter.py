@@ -37,8 +37,6 @@ def eventToArray (event, maxBrightness, frames):
 
     eventArray = np.array([])
 
-    event.T[2] = event.T[2] % 2 + 1
-
     for i, pulse in enumerate(event):
         [r, g, b] = wav2RGB(wavelength[i])
 
