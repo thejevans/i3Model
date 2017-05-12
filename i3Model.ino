@@ -26,17 +26,14 @@ Adafruit_FT6206 ts = Adafruit_FT6206();
 #define BOXSTART_Y 220
 #define BOXSTART_Y2 270
 
-// Set gap between frames
-#define WAIT 0
-
 // Set maximum brightness
 #define MAX_BRIGHT 100
 
 // Which pin on the Arduino is connected to the NeoPixels?
 #define PIN 12
 
-// We have 78 strings x 60 doms/string = 4680 total doms NeoPixels are attached to the Arduino.
-#define NUMPIXELS 4680
+// We have 80 strings x 60 doms/string = 4800 total doms NeoPixels are attached to the Arduino.
+#define NUMPIXELS 4800
 
 // Set pin for SD card
 const int chipSelect = 4;
@@ -44,9 +41,11 @@ const int chipSelect = 4;
 // Global variables for file management
 int page = 1;
 File root;
-String fileNames[255][2];
+String fileNames[255];
 int lastFile = 0;
+int lastPage = 0;
 int isEventFile[255];
+int isDir[255];
 
 // Switch for pausing events or tests
 bool paused = false;
@@ -70,12 +69,14 @@ void setup() {
   Serial.begin(9600);
   while (!Serial) ; // wait for Arduino Serial Monitor
 
+  delay(500); // needed to properly boot on first try
+
   tft.begin();
   ts.begin();
   pixels.begin();
 
   // Clear NeoPixels
-  pixels.show();
+  clearPixels();
 
   // Clear TFT
   pinMode(TFT_CS, OUTPUT);
@@ -95,25 +96,31 @@ void setup() {
   int i = 0;
   String k = "";
   while(entry) {
-    fileNames[i][0] = "";
-    fileNames[i][1] = "";
+    fileNames[i] = "";
+    isDir[i] = 0;
     k = entry.name();
     isEventFile[i] = 0;
-    if (!entry.isDirectory()) {
-      if (k.substring(k.indexOf('.')) == ".I3R") {
-        isEventFile[i] = 1;
-        Serial.println(k);
+    if(!k.startsWith("_")) {
+      if (!entry.isDirectory()) {
+        if (k.substring(k.indexOf('.')) == ".I3R") {
+          isEventFile[i] = 1;
+          Serial.println(k);
+        }
+        //k = k + "\t\t\t\t\t\t\t";
+        //k = k + entry.size();
       }
-      //k = k + "\t\t\t\t\t\t\t";
-      //k = k + entry.size();
+      else {
+        isDir[i] = 1;
+      }
+      fileNames[i] = k;
+      i++;
+      lastFile++;
     }
-    else {
-      fileNames[i][1] = "1";
-    }
-    fileNames[i][0] = k;
     entry = root.openNextFile();
-    i++;
-    lastFile++;
+  }
+  lastPage = (lastFile - (lastFile % 25)) / 25;
+  if(lastFile % 25 > 0) {
+    lastPage++;
   }
   root.rewindDirectory();
 
@@ -125,14 +132,16 @@ void setup() {
 TS_Point boop() {
   TS_Point p;
   if (ts.touched()) {
-    released = false;
-    Serial.println("boop!");
-    p = ts.getPoint();
-    p.x = -(p.x - 240);
-    p.y = -(p.y - 320);
-    Serial.println(p.x);
-    Serial.println(p.y);
-    return p;
+    if (released) {
+      Serial.println("boop!");
+      p = ts.getPoint();
+      p.x = -(p.x - 240);
+      p.y = -(p.y - 320);
+      Serial.println(p.x);
+      Serial.println(p.y);
+      released = false;
+      return p;
+    }
   }
   else {
     released = true;
@@ -140,6 +149,13 @@ TS_Point boop() {
   p.x = 0;
   p.y = 0;
   return p;
+}
+
+void wait(int runs) {
+  for(int i = 0; i < runs; i++) {
+    loop();
+  }
+  return;
 }
 
 // Main loop
@@ -194,7 +210,7 @@ void loop() {
         }
       }
       else if (p.x >= BOXSTART_X2 && p.x <= BOXSTART_X2 + BOXSIZE * 2) { // Next button selected
-        if (page <= lastFile/25 + 1) { //If on last page, do nothing
+        if (page < lastPage) { //If on last page, do nothing
           page = page + 1; // Move forward one page
           make_file_menu(page, 2);
         }
@@ -207,7 +223,7 @@ void loop() {
           if(p.y >= j && p.y <= j + 8) {
             page = 1;
             Serial.println("EVENT SELECTED");
-            displayEvents(fileNames[i][0]);
+            displayEvents(fileNames[i]);
           }
         }
       }
@@ -233,7 +249,7 @@ void led_test() {
   tft.println("Running LED Test 1");
   tft.setCursor(10, 10+8);
   int base = 10;
-  for(int i = 0; i < 78; i++) {
+  for(int i = 0; i < NUMPIXELS / 60; i++) {
     loop(); // Run loop to check for touch event
     while (paused) { // If paused, wait until unpaused
       loop();
@@ -242,27 +258,33 @@ void led_test() {
       stopped = false;
       playing = false;
       clearPixels();
-      make_h_menu(0);
+      tft.fillRect(0, 0, 240, 218, ILI9341_BLACK); // Clear screen above buttons
       return;
     }
     tft.setCursor(10, base + 8 * (i + 1));
     tft.print("String ");
     tft.print(i);
     tft.print(": RED ");
-    setStringColor(i, 255, 0, 0); // Sets string to red
+    setStringColor(i, MAX_BRIGHT, 0, 0); // Sets string to red
+    loop(); // Run loop to check for touch event
     tft.print("GREEN ");
-    setStringColor(i, 0, 255, 0); // Sets string to green
+    setStringColor(i, 0, MAX_BRIGHT, 0); // Sets string to green
+    loop(); // Run loop to check for touch event
     tft.print("BLUE ");
-    setStringColor(i, 0, 0, 255); // Sets string to blue
+    setStringColor(i, 0, 0, MAX_BRIGHT); // Sets string to blue
+    loop(); // Run loop to check for touch event
     tft.print("GRAD");
-    setStringGrad(i, 255, 0, 0, 0, 0, 255); // Displays a gradient from red to blue
+    setStringGrad(i, MAX_BRIGHT, 0, 0, 0, 0, MAX_BRIGHT); // Displays a gradient from red to blue
+    loop(); // Run loop to check for touch event
+    wait(500);
     setStringColor(i, 0, 0, 0);
+    loop(); // Run loop to check for touch event
     if(i % 25 == 24) { // If output fills screen, clear screen and set cursor to top again
       tft.fillRect(10, 18, 230, 200, ILI9341_BLACK);
       base = base - 200;
     }
   }
-  tft.setCursor(10, base + 8 * 79);
+  tft.setCursor(10, base + 8 * (NUMPIXELS / 60) + 1);
   tft.print("Done!");
   playing = false; // No longer playing
 }
@@ -282,14 +304,15 @@ void setStringColor(int stringNum, byte r, byte g, byte b) {
 // Displays a gradient on a given string
 void setStringGrad(int stringNum, byte ir, byte ig, byte ib, byte fr, byte fg, byte fb) {
   int startPos = stringNum * 60; // sets start at beginning of string
-  byte r;
-  byte g;
-  byte b;
+  byte r = ir;
+  byte g = ig;
+  byte b = ib;
   for(int i = 0; i < 60; i++) {
-    r = min(255, (int) r + (ir - fr) / 60); // steps from initial red to final red
-    g = min(255, (int) g + (ig - fg) / 60); // steps from initial green to final green
-    r = min(255, (int) b + (ib - fb) / 60); // steps from initial blue to final blue
-    pixels.setPixelColor(i + startPos, ir, ig, ib);
+    pixels.setPixelColor(i + startPos, r, g, b);
+    r = min(MAX_BRIGHT, r + (int)(((float)fr - (float)ir) / 60.0)); // steps from initial red to final red
+    g = min(MAX_BRIGHT, g + (int)(((float)fg - (float)ig) / 60.0)); // steps from initial green to final green
+    b = min(MAX_BRIGHT, b + (int)(((float)fb - (float)ib) / 60.0)); // steps from initial blue to final blue
+    
   }
   Serial.print("string ");
   Serial.print(stringNum);
@@ -301,6 +324,7 @@ void clearPixels() {
   for(int i = 0; i < NUMPIXELS; i++) {
     pixels.setPixelColor(i, 0, 0, 0);
   }
+  pixels.show();
 }
 
 void displayEvents(String filename) {
@@ -310,6 +334,7 @@ void displayEvents(String filename) {
   paused = false;
   playing = true;
 
+  bool newevent = false;
   int event = 1;
   int frame = 1;
   char val[20];
@@ -343,8 +368,16 @@ void displayEvents(String filename) {
       stopped = false;
       playing = false;
       clearPixels();
-      make_h_menu(0);
+      tft.fillRect(0, 0, 240, 218, ILI9341_BLACK); // Clear screen above buttons
       return;
+    }
+    if(newevent) {
+      clearPixels();
+      tft.setCursor(10+8*5, 10+8);
+      tft.fillRect(10+8*5, 10+8, 10+9*5, 10+8+8, ILI9341_BLACK);
+      tft.print(event);
+      pos = 0;
+      newevent = false;
     }
     i = 0;
     memset(val, 0, sizeof(val));
@@ -356,16 +389,16 @@ void displayEvents(String filename) {
       Serial.println("END OF FRAME");
       frame++;
       pixels.show();
-      delay(WAIT);
-      //add display update
+      tft.setCursor(10+8*5, 10+8+8);
+      tft.fillRect(10+8*5, 10+8+8, 10+9*5, 10+8+8+8, ILI9341_BLACK);
+      tft.print(frame);
       pos = 0;
     }
     else if(val[0] == 'x') {
       Serial.println("END OF EVENT");
       event++;
-      clearPixels();
-      //add display update
-      pos = 0;
+      paused = true;
+      newevent = true;
     }
     else if(pos == 0) {
       led = atoi(val);
@@ -395,6 +428,20 @@ void displayEvents(String filename) {
       pos = 0;
     }
   }
+  while (paused) {
+    loop();
+  }
+  if(stopped) {
+    stopped = false;
+    playing = false;
+    clearPixels();
+    tft.fillRect(0, 0, 240, 218, ILI9341_BLACK); // Clear screen above buttons
+    return;
+  }
+  clearPixels();
+  tft.setCursor(10, 10+8+8+8);
+  tft.print("Done!");
+  playing = false; // No longer playing
 }
 
 void make_h_menu(int selection) {
@@ -472,7 +519,7 @@ void make_file_menu(int page, int selection) {
     break;
 
     case 2:
-    if (page <= lastFile/25) {
+    if (page <= lastPage) {
       tft.drawRect(BOXSTART_X, BOXSTART_Y2, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
       tft.drawRect(BOXSTART_X2, BOXSTART_Y2, BOXSIZE * 2, BOXSIZE, ILI9341_WHITE);
       make_file_menu(page, 0);
@@ -490,7 +537,7 @@ void make_file_menu(int page, int selection) {
     tft.setTextColor(ILI9341_BLACK);
     tft.setTextSize(2);
     tft.println("BACK");
-    if (page <= lastFile/25) {
+    if (page < lastPage) {
       tft.fillRect(BOXSTART_X2, BOXSTART_Y2, BOXSIZE * 2, BOXSIZE, ILI9341_YELLOW);
       tft.setCursor(BOXSTART_X2 + 16, BOXSTART_Y2 + 13);
       tft.setTextColor(ILI9341_BLACK);
@@ -532,11 +579,11 @@ void displayFiles(int page) {
       tft.setTextColor(ILI9341_GREEN);
     }
 
-    else if (fileNames[i][1] == "1") {
+    else if (isDir[i] == 1) {
       tft.setTextColor(ILI9341_BLUE);
     }
 
-    tft.print(fileNames[i][0]);
+    tft.print(fileNames[i]);
 
     i++;
   }
