@@ -4,7 +4,6 @@
 #include <Wire.h>             // this is needed for FT6206
 #include <Adafruit_FT6206.h>  // Touch library
 #include <SD.h>               // SD card library
-#include "digitalWriteFastDue.h" // Library for much faster pin writes
 #include <FastLED.h>          // FastLED library
 
 #ifdef __AVR__
@@ -69,131 +68,6 @@ int activeMenu = 0;
 // Array of pixels
 CRGB pixels[NUMPIXELS];
 
-
-// These are the timing constraints taken mostly from the WS2812 datasheets 
-// These are chosen to be conservative and avoid problems rather than for maximum throughput 
-
-#define T1H  900    // Width of a 1 bit in ns
-#define T1L  600    // Width of a 1 bit in ns
-
-#define T0H  400    // Width of a 0 bit in ns
-#define T0L  900    // Width of a 0 bit in ns
-
-#define RES 6000    // Width of the low gap between bits to cause a frame to latch
-
-// Here are some convience defines for using nanoseconds specs to generate actual CPU delays
-
-#define NS_PER_SEC (1000000000L)          // Note that this has to be SIGNED since we want to be able to check for negative values of derivatives
-
-#define CYCLES_PER_SEC (F_CPU)
-
-#define NS_PER_CYCLE ( NS_PER_SEC / CYCLES_PER_SEC )
-
-#define NS_TO_CYCLES(n) ( (n) / NS_PER_CYCLE )
-
-// Actually send a bit to the string. We must to drop to asm to enusre that the complier does
-// not reorder things and make it so the delay happens in the wrong place.
-
-inline void sendBit( bool bitVal ) {
-  
-    if (  bitVal ) {        // 1 bit
-        digitalWriteDirect(PIN, true);
-        //for (int i = 0; i < NS_TO_CYCLES(T1H) - 2; i++) {__asm__("nop\n\t");}
-        asm volatile (
-          ".rept 48 \n\t"                                // Execute NOPs to delay exactly the specified number of cycles
-          "nop \n\t"
-          ".endr \n\t"
-        );
-        digitalWriteDirect(PIN, false);
-        //for (int i = 0; i < NS_TO_CYCLES(T1L) - 2; i++) {__asm__("nop\n\t");}
-        asm volatile (
-          ".rept 14 \n\t"                               // Execute NOPs to delay exactly the specified number of cycles
-          "nop \n\t"
-          ".endr \n\t"
-        );                       
-    } else {          // 0 bit
-
-    // **************************************************************************
-    // This line is really the only tight goldilocks timing in the whole program!
-    // **************************************************************************
-        digitalWriteDirect(PIN, true);
-        //for (int i = 0; i < NS_TO_CYCLES(T0H) - 2; i++) {__asm__("nop\n\t");}
-        asm volatile(
-          ".rept 31 \n\t"                                // Execute NOPs to delay exactly the specified number of cycles
-          "nop \n\t"
-          ".endr \n\t"   
-        );
-        digitalWriteDirect(PIN, false);
-        //for (int i = 0; i < NS_TO_CYCLES(T0L) - 2; i++) {__asm__("nop\n\t");}
-        asm volatile (
-          ".rept 73 \n\t"                               // Execute NOPs to delay exactly the specified number of cycles
-          "nop \n\t"
-          ".endr \n\t"
-        );
-      
-    }
-    
-    // Note that the inter-bit gap can be as long as you want as long as it doesn't exceed the 5us reset timeout (which is A long time)
-    // Here I have been generous and not tried to squeeze the gap tight but instead erred on the side of lots of extra time.
-    // This has thenice side effect of avoid glitches on very long strings becuase 
-
-    
-}  
-
-  
-inline void sendByte( byte toSend ) {
-    
-    for( int i = 0 ; i < 8 ; i++ ) {
-
-      unsigned char thisBit = bitRead( toSend, 7 );
-      
-      sendBit( thisBit );                // Neopixel wants bit in highest-to-lowest order
-                                                     // so send highest bit (bit #7 in an 8-bit byte since they start at 0)
-      toSend <<= 1;                                    // and then shift left so bit 6 moves into 7, 5 moves into 6, etc
-      
-    }           
-} 
-
-/*
-  The following three functions are the public API:
-  
-  ledSetup() - set up the pin that is connected to the string. Call once at the begining of the program.  
-  sendPixel( r g , b ) - send a single pixel to the string. Call this once for each pixel in a frame.
-  show() - show the recently sent pixel on the LEDs . Call once per frame. 
-  
-*/
-
-inline void sendPixel( byte r, byte g , byte b )  {  
-  
-  sendByte(g);          // Neopixel wants colors in green then red then blue order
-  sendByte(r);
-  sendByte(b);
-  
-}
-
-
-// Just wait long enough without sending any bots to cause the pixels to latch and display the last sent frame
-
-void showPixels() {
-  delayMicroseconds( (RES / 1000UL) + 1);       // Round up since the delay must be _at_least_ this long (too short might not work, too long not a problem)
-}
-
-
-/*
-  That is the whole API. What follows are some demo functions rewriten from the AdaFruit strandtest code...
-  
-  https://github.com/adafruit/Adafruit_NeoPixel/blob/master/examples/strandtest/strandtest.ino
-  
-  Note that we always turn off interrupts while we are sending pixels becuase an interupt
-  could happen just when we were in the middle of somehting time sensitive.
-  
-  If we wanted to minimize the time interrupts were off, we could instead 
-  could get away with only turning off interrupts just for the very brief moment 
-  when we are actually sending a 0 bit (~1us), as long as we were sure that the total time 
-  taken by any interrupts + the time in our pixel generation code never exceeded the reset time (5us).
-  
-*/
-
 //--------------------------------------------------------------------------------------
 // Initial commands
 //--------------------------------------------------------------------------------------
@@ -202,9 +76,6 @@ void setup() {
   while (!Serial) ; // wait for Arduino Serial Monitor
 
   delay(500); // needed to properly boot on first try
-
-  // Set LED pin as output
-  pinMode(PIN, OUTPUT);
 
   // Initialize touchscreen
   tft.begin();
@@ -658,66 +529,6 @@ void displayEvents(String filename) {
   if(stopCheck()) { return; }
 
   // Print "Done!" at the end
-  tft.setCursor(10, 10+8+8+8);
-  tft.print("Done!");
-  return;
-}
-
-//--------------------------------------------------------------------------------------
-// Displays a solid color on a given string
-//--------------------------------------------------------------------------------------
-void setStringColor(int stringNum, byte r, byte g, byte b) {
-  // sets start at beginning of string
-  int startPos = stringNum * 60;
-  
-  //for(int i = 0; i < 60; i++) { // Loop through string and set each LED to color
-    //pixels[i+startPos] = CRGB(r,g,b);
-  //}
-  //noInterrupts();
-  for(int i = 0; i < startPos; i++) {
-    sendPixel(0,0,0);
-  }
-  for(int i = startPos; i < 60; i++) {
-    sendPixel(r,g,b);
-  }
-  for(int i = startPos + 60; i < NUMPIXELS; i++) {
-    sendPixel(0,0,0);
-  }
-  
-  // Display LEDs
-  //FastLED.show();
-  showPixels();
-  //interrupts();
-  
-  Serial.print("string ");
-  Serial.print(stringNum);
-  Serial.println(": solid");
-}
-
-//--------------------------------------------------------------------------------------
-// Displays a gradient on a given string
-//--------------------------------------------------------------------------------------
-void setStringGrad(int stringNum, byte ir, byte ig, byte ib, byte fr, byte fg, byte fb) {
-  // sets start at beginning of string
-  int startPos = stringNum * 60;
-
-  // Initialize r,g,b with starting values
-  byte r = ir;
-  byte g = ig;
-  byte b = ib;
-  
-  for(int i = 0; i < 60; i++) { // Loop through string and set each LED to color
-    // Set LED
-    pixels[i+startPos] = CRGB(r,g,b);
-    
-    // steps from initial red to final red
-    r = min(MAX_BRIGHT, r + (int)(((float)fr - (float)ir) / 60.0));
-
-    // steps from initial green to final green
-    g = min(MAX_BRIGHT, g + (int)(((float)fg - (float)ig) / 60.0));
-
-    // steps from initial blue to final blue
-    b = min(MAX_BRIGHT, b + (int)(((float)fb - (float)ib) / 60.0)); 
   tft.setCursor(10, 10+8+8+8);
   tft.print("Done!");
   return;
