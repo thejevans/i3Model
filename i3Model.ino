@@ -4,7 +4,6 @@
 #include <Wire.h>             // this is needed for FT6206
 #include <Adafruit_FT6206.h>  // Touch library
 #include <SD.h>               // SD card library
-#include "digitalWriteFastDue.h" // Library for much faster pin writes
 #include <FastLED.h>          // FastLED library
 
 #ifdef __AVR__
@@ -21,10 +20,10 @@ Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
 Adafruit_FT6206 ts = Adafruit_FT6206();
 
 // Set button sizes and locations
-#define BOXSIZE 40
-#define BOXSTART_X 35
-#define BOXSTART_X2 125
-#define BOXSTART_Y 270
+#define BUTTONSIZE_X 40
+#define BUTTONSTART_X 35
+#define BUTTONSTART_X2 125
+#define BUTTONSTART_Y 270
 
 // Set maximum brightness
 #define MAX_BRIGHT 100
@@ -67,119 +66,6 @@ int activeMenu = 0;
 
 // Array of pixels
 CRGB pixels[NUMPIXELS];
-
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-// Custom Neopixel Library
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-// Currently, this doesn't work. In order to fix this, need to find time length of for loops in nanoseconds through trial and error. Use this to 
-// replace assembler loops.
-//
-//
-//
-
-// These are the timing constraints taken mostly from the WS2812 datasheets 
-// These are chosen to be conservative and avoid problems rather than for maximum throughput 
-
-#define T1H  900    // Width of a 1 bit in ns
-#define T1L  600    // Width of a 1 bit in ns
-
-#define T0H  400    // Width of a 0 bit in ns
-#define T0L  900    // Width of a 0 bit in ns
-
-#define RES 6000    // Width of the low gap between bits to cause a frame to latch
-
-// Here are some convience defines for using nanoseconds specs to generate actual CPU delays
-
-#define NS_PER_SEC (1000000000L)          // Note that this has to be SIGNED since we want to be able to check for negative values of derivatives
-
-#define CYCLES_PER_SEC (F_CPU)
-
-#define NS_PER_CYCLE ( NS_PER_SEC / CYCLES_PER_SEC )
-
-#define NS_TO_CYCLES(n) ( (n) / NS_PER_CYCLE )
-
-// Actually send a bit to the string. We must to drop to asm to enusre that the complier does
-// not reorder things and make it so the delay happens in the wrong place.
-
-inline void sendBit ( bool bitVal ) {
-  
-    if (  bitVal ) {        // 1 bit
-        digitalWriteDirect(PIN, true);
-        //for (int i = 0; i < NS_TO_CYCLES(T1H) - 2; i++) {__asm__("nop\n\t");}
-        asm volatile (
-          ".rept 48 \n\t"                                // Execute NOPs to delay exactly the specified number of cycles
-          "nop \n\t"
-          ".endr \n\t"
-        );
-        digitalWriteDirect(PIN, false);
-        //for (int i = 0; i < NS_TO_CYCLES(T1L) - 2; i++) {__asm__("nop\n\t");}
-        asm volatile (
-          ".rept 14 \n\t"                               // Execute NOPs to delay exactly the specified number of cycles
-          "nop \n\t"
-          ".endr \n\t"
-        );                       
-    } else {          // 0 bit
-
-    // **************************************************************************
-    // This line is really the only tight goldilocks timing in the whole program!
-    // **************************************************************************
-        digitalWriteDirect(PIN, true);
-        //for (int i = 0; i < NS_TO_CYCLES(T0H) - 2; i++) {__asm__("nop\n\t");}
-        asm volatile(
-          ".rept 31 \n\t"                                // Execute NOPs to delay exactly the specified number of cycles
-          "nop \n\t"
-          ".endr \n\t"   
-        );
-        digitalWriteDirect(PIN, false);
-        //for (int i = 0; i < NS_TO_CYCLES(T0L) - 2; i++) {__asm__("nop\n\t");}
-        asm volatile (
-          ".rept 73 \n\t"                               // Execute NOPs to delay exactly the specified number of cycles
-          "nop \n\t"
-          ".endr \n\t"
-        );
-      
-    }
-    
-    // Note that the inter-bit gap can be as long as you want as long as it doesn't exceed the 5us reset timeout (which is A long time)
-    // Here I have been generous and not tried to squeeze the gap tight but instead erred on the side of lots of extra time.
-    // This has thenice side effect of avoid glitches on very long strings becuase 
-
-    
-}  
-
-  
-inline void sendByte ( byte toSend ) {
-    
-    for ( int i = 0 ; i < 8 ; i++ ) {
-
-      unsigned char thisBit = bitRead( toSend, 7 );
-      
-      sendBit( thisBit );                // Neopixel wants bit in highest-to-lowest order
-                                                     // so send highest bit (bit #7 in an 8-bit byte since they start at 0)
-      toSend <<= 1;                                    // and then shift left so bit 6 moves into 7, 5 moves into 6, etc
-      
-    }           
-} 
-
-inline void sendPixel ( byte r, byte g , byte b )  {  
-  
-  sendByte(g);          // Neopixel wants colors in green then red then blue order
-  sendByte(r);
-  sendByte(b);
-  
-}
-
-
-// Just wait long enough without sending any bots to cause the pixels to latch and display the last sent frame
-
-void showPixels () {
-  delayMicroseconds( (RES / 1000UL) + 1);       // Round up since the delay must be _at_least_ this long (too short might not work, too long not a problem)
-}
-
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-// Main program
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 //--------------------------------------------------------------------------------------
 // Initial commands
@@ -314,8 +200,8 @@ void loop () {
   // Prints buttons on display and responds to touch events
   switch (activeMenu) {
     case 1: // Main menu
-      if (p.y >= BOXSTART_Y && p.y <= BOXSTART_Y + BOXSIZE) {
-        if (p.x >= BOXSTART_X && p.x <= BOXSTART_X2 - 10) { // Play or Pause or File button selected
+      if (p.y >= BUTTONSTART_Y && p.y <= BUTTONSTART_Y + BUTTONSIZE_X) {
+        if (p.x >= BUTTONSTART_X && p.x <= BUTTONSTART_X2 - 10) { // Play or Pause or File button selected
           if (playing) {
             if (paused) {
               paused = false; // If paused, play
@@ -329,7 +215,7 @@ void loop () {
           make_h_menu(3); // Else file button selected
           make_file_menu(0, 0); // Switch to file menu (page = 0 to clear screen)
         }
-        else if (p.x >= BOXSTART_X2 && p.x <= BOXSTART_X2 + BOXSIZE * 2) {
+        else if (p.x >= BUTTONSTART_X2 && p.x <= BUTTONSTART_X2 + BUTTONSIZE_X * 2) {
           if (playing) { // If paused, stop button selected
             if (!paused) {
               break;
@@ -346,20 +232,20 @@ void loop () {
       break;
 
     case 2: // File menu
-      if (p.y >= BOXSTART_Y && p.y <= BOXSTART_Y + BOXSIZE) {
-        if (p.x >= BOXSTART_X && p.x <= BOXSTART_X2 - 10) { // Back button selected
+      if (p.y >= BUTTONSTART_Y && p.y <= BUTTONSTART_Y + BUTTONSIZE_X) {
+        if (p.x >= BUTTONSTART_X && p.x <= BUTTONSTART_X2 - 10) { // Back button selected
           if (page >= 2) { // If not on first page, display previous page
             page = page - 1; // Move back one page
             make_file_menu(page, 1);
           }
           else { // Else, return to main menu
-            tft.drawRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_WHITE);
-            tft.drawRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
+            tft.drawRect(BUTTONSTART_X, BUTTONSTART_Y, BUTTONSIZE_X * 2, BUTTONSIZE_X, ILI9341_WHITE);
+            tft.drawRect(BUTTONSTART_X2, BUTTONSTART_Y, BUTTONSIZE_X * 2, BUTTONSIZE_X, ILI9341_BLACK);
             tft.fillScreen(ILI9341_BLACK);
             make_h_menu(0);
           }
         }
-        else if (p.x >= BOXSTART_X2 && p.x <= BOXSTART_X2 + BOXSIZE * 2) { // Next button selected
+        else if (p.x >= BUTTONSTART_X2 && p.x <= BUTTONSTART_X2 + BUTTONSIZE_X * 2) { // Next button selected
           if (page < lastPage) { //If on last page, do nothing
             page = page + 1; // Move forward one page
             make_file_menu(page, 2);
@@ -690,20 +576,6 @@ void setStringColor (int stringNum, byte r, byte g, byte b) {
   //Display LEDs
   FastLED.show();
   
-  // Test Custom API  
-//  noInterrupts();
-//  for (int i = 0; i < startPos; i++) {
-//    sendPixel(0,0,0);
-//  }
-//  for (int i = startPos; i < 60; i++) {
-//    sendPixel(r,g,b);
-//  }
-//  for (int i = startPos + 60; i < NUMPIXELS; i++) {
-//    sendPixel(0,0,0);
-//  }
-//  showPixels();
-//  interrupts();
-  
   Serial.print("string ");
   Serial.print(stringNum);
   Serial.println(": solid");
@@ -756,23 +628,24 @@ void clearPixels () {
 //--------------------------------------------------------------------------------------
 // Make home menu. selection highlights selected box.
 //--------------------------------------------------------------------------------------
-void make_h_menu (int selection) {
+void make_h_menu (int selection) {  
+  activeMenu = 1;
   switch (selection) {
     case 1: // highlight left box
-      tft.drawRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_WHITE);
-      tft.drawRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
+      tft.drawRect(BUTTONSTART_X, BUTTONSTART_Y, BUTTONSIZE_X * 2, BUTTONSIZE_X, ILI9341_WHITE);
+      tft.drawRect(BUTTONSTART_X2, BUTTONSTART_Y, BUTTONSIZE_X * 2, BUTTONSIZE_X, ILI9341_BLACK);
       make_h_menu(0);
       break;
 
     case 2: // highlight right box
-      tft.drawRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
-      tft.drawRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_WHITE);
+      tft.drawRect(BUTTONSTART_X, BUTTONSTART_Y, BUTTONSIZE_X * 2, BUTTONSIZE_X, ILI9341_BLACK);
+      tft.drawRect(BUTTONSTART_X2, BUTTONSTART_Y, BUTTONSIZE_X * 2, BUTTONSIZE_X, ILI9341_WHITE);
       make_h_menu(0);
       break;
 
     default:
       // Clear boxes
-      tft.fillRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 5, BOXSIZE, ILI9341_BLACK);
+      tft.fillRect(BUTTONSTART_X2, BUTTONSTART_Y, BUTTONSIZE_X * 5, BUTTONSIZE_X, ILI9341_BLACK);
 
       // Set text presets
       tft.setTextColor(ILI9341_BLACK);
@@ -780,40 +653,38 @@ void make_h_menu (int selection) {
 
       if (paused) {
         // Make play button
-        tft.fillRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_GREEN);
-        tft.setCursor(BOXSTART_X + 35, BOXSTART_Y + 13);
+        tft.fillRect(BUTTONSTART_X, BUTTONSTART_Y, BUTTONSIZE_X * 2, BUTTONSIZE_X, ILI9341_GREEN);
+        tft.setCursor(BUTTONSTART_X + 35, BUTTONSTART_Y + 13);
         tft.println(">");
 
         // Make stop button
-        tft.fillRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_RED);
-        tft.setCursor(BOXSTART_X2 + 33, BOXSTART_Y + 13);
+        tft.fillRect(BUTTONSTART_X2, BUTTONSTART_Y, BUTTONSIZE_X * 2, BUTTONSIZE_X, ILI9341_RED);
+        tft.setCursor(BUTTONSTART_X2 + 33, BUTTONSTART_Y + 13);
         tft.println("X");
       }
       
       else if (playing) {
         // Make pause button
-        tft.fillRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_YELLOW);
-        tft.setCursor(BOXSTART_X + 29, BOXSTART_Y + 13);
+        tft.fillRect(BUTTONSTART_X, BUTTONSTART_Y, BUTTONSIZE_X * 2, BUTTONSIZE_X, ILI9341_YELLOW);
+        tft.setCursor(BUTTONSTART_X + 29, BUTTONSTART_Y + 13);
         tft.println("||");
       }
 
       else {
-        //do the button for submenu on files
-        tft.fillRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_YELLOW);
-        tft.setCursor(BOXSTART_X + 10, BOXSTART_Y + 13);
+        // Make files button
+        tft.fillRect(BUTTONSTART_X, BUTTONSTART_Y, BUTTONSIZE_X * 2, BUTTONSIZE_X, ILI9341_YELLOW);
+        tft.setCursor(BUTTONSTART_X + 10, BUTTONSTART_Y + 13);
         tft.println("FILES");
   
-        //do the test button
-        tft.fillRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 2/3, BOXSIZE, ILI9341_RED);
-        tft.fillRect(BOXSTART_X2 + BOXSIZE * 2/3 , BOXSTART_Y, BOXSIZE * 2/3 + 2, BOXSIZE, ILI9341_GREEN);
-        tft.fillRect(BOXSTART_X2 + BOXSIZE * 4/3 , BOXSTART_Y, BOXSIZE * 2/3, BOXSIZE, ILI9341_BLUE);
-        tft.setCursor(BOXSTART_X2 + 16, BOXSTART_Y + 13);
+        // Make test button
+        tft.fillRect(BUTTONSTART_X2, BUTTONSTART_Y, BUTTONSIZE_X * 2/3, BUTTONSIZE_X, ILI9341_RED);
+        tft.fillRect(BUTTONSTART_X2 + BUTTONSIZE_X * 2/3 , BUTTONSTART_Y, BUTTONSIZE_X * 2/3 + 2, BUTTONSIZE_X, ILI9341_GREEN);
+        tft.fillRect(BUTTONSTART_X2 + BUTTONSIZE_X * 4/3 , BUTTONSTART_Y, BUTTONSIZE_X * 2/3, BUTTONSIZE_X, ILI9341_BLUE);
+        tft.setCursor(BUTTONSTART_X2 + 16, BUTTONSTART_Y + 13);
         tft.println("TEST");
       }
       break;
   }
-
-  activeMenu = 1;
   return;
 }
 
@@ -825,16 +696,16 @@ void make_file_menu (int page, int selection) {
   switch (selection) {
     case 1:
       if (page >= 1) {
-        tft.drawRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_WHITE);
-        tft.drawRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
+        tft.drawRect(BUTTONSTART_X, BUTTONSTART_Y, BUTTONSIZE_X * 2, BUTTONSIZE_X, ILI9341_WHITE);
+        tft.drawRect(BUTTONSTART_X2, BUTTONSTART_Y, BUTTONSIZE_X * 2, BUTTONSIZE_X, ILI9341_BLACK);
         make_file_menu(page, 0);
       }
       break;
 
     case 2:
       if (page <= lastPage) {
-        tft.drawRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
-        tft.drawRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_WHITE);
+        tft.drawRect(BUTTONSTART_X, BUTTONSTART_Y, BUTTONSIZE_X * 2, BUTTONSIZE_X, ILI9341_BLACK);
+        tft.drawRect(BUTTONSTART_X2, BUTTONSTART_Y, BUTTONSIZE_X * 2, BUTTONSIZE_X, ILI9341_WHITE);
         make_file_menu(page, 0);
       }
       break;
@@ -845,23 +716,23 @@ void make_file_menu (int page, int selection) {
         page = 1;
       }
       tft.fillRect(0, 0, 240, 270, ILI9341_BLACK);
-      tft.fillRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_YELLOW);
-      tft.setCursor(BOXSTART_X + 16, BOXSTART_Y + 13);
+      tft.fillRect(BUTTONSTART_X, BUTTONSTART_Y, BUTTONSIZE_X * 2, BUTTONSIZE_X, ILI9341_YELLOW);
+      tft.setCursor(BUTTONSTART_X + 16, BUTTONSTART_Y + 13);
       tft.setTextColor(ILI9341_BLACK);
       tft.setTextSize(2);
       tft.println("BACK");
       if (page < lastPage) {
-        tft.fillRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_YELLOW);
-        tft.setCursor(BOXSTART_X2 + 16, BOXSTART_Y + 13);
+        tft.fillRect(BUTTONSTART_X2, BUTTONSTART_Y, BUTTONSIZE_X * 2, BUTTONSIZE_X, ILI9341_YELLOW);
+        tft.setCursor(BUTTONSTART_X2 + 16, BUTTONSTART_Y + 13);
         tft.setTextColor(ILI9341_BLACK);
         tft.setTextSize(2);
         tft.println("MORE");
       }
       else {
-        tft.fillRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
+        tft.fillRect(BUTTONSTART_X2, BUTTONSTART_Y, BUTTONSIZE_X * 2, BUTTONSIZE_X, ILI9341_BLACK);
       }
-      tft.drawRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
-      tft.drawRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
+      tft.drawRect(BUTTONSTART_X, BUTTONSTART_Y, BUTTONSIZE_X * 2, BUTTONSIZE_X, ILI9341_BLACK);
+      tft.drawRect(BUTTONSTART_X2, BUTTONSTART_Y, BUTTONSIZE_X * 2, BUTTONSIZE_X, ILI9341_BLACK);
       displayFiles(page);
       break;
   }
