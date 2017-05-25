@@ -4,6 +4,7 @@
 #include <Wire.h>             // this is needed for FT6206
 #include <Adafruit_FT6206.h>  // Touch library
 #include <SD.h>               // SD card library
+#include "digitalWriteFastDue.h" // Library for much faster pin writes
 #include <FastLED.h>          // FastLED library
 
 #ifdef __AVR__
@@ -68,6 +69,119 @@ int activeMenu = 0;
 // Array of pixels
 CRGB pixels[NUMPIXELS];
 
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// Custom Neopixel Library
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+// Currently, this doesn't work. In order to fix this, need to find time length of for loops in nanoseconds through trial and error. Use this to 
+// replace assembler loops.
+//
+//
+//
+
+// These are the timing constraints taken mostly from the WS2812 datasheets 
+// These are chosen to be conservative and avoid problems rather than for maximum throughput 
+
+#define T1H  900    // Width of a 1 bit in ns
+#define T1L  600    // Width of a 1 bit in ns
+
+#define T0H  400    // Width of a 0 bit in ns
+#define T0L  900    // Width of a 0 bit in ns
+
+#define RES 6000    // Width of the low gap between bits to cause a frame to latch
+
+// Here are some convience defines for using nanoseconds specs to generate actual CPU delays
+
+#define NS_PER_SEC (1000000000L)          // Note that this has to be SIGNED since we want to be able to check for negative values of derivatives
+
+#define CYCLES_PER_SEC (F_CPU)
+
+#define NS_PER_CYCLE ( NS_PER_SEC / CYCLES_PER_SEC )
+
+#define NS_TO_CYCLES(n) ( (n) / NS_PER_CYCLE )
+
+// Actually send a bit to the string. We must to drop to asm to enusre that the complier does
+// not reorder things and make it so the delay happens in the wrong place.
+
+inline void sendBit( bool bitVal ) {
+  
+    if (  bitVal ) {        // 1 bit
+        digitalWriteDirect(PIN, true);
+        //for (int i = 0; i < NS_TO_CYCLES(T1H) - 2; i++) {__asm__("nop\n\t");}
+        asm volatile (
+          ".rept 48 \n\t"                                // Execute NOPs to delay exactly the specified number of cycles
+          "nop \n\t"
+          ".endr \n\t"
+        );
+        digitalWriteDirect(PIN, false);
+        //for (int i = 0; i < NS_TO_CYCLES(T1L) - 2; i++) {__asm__("nop\n\t");}
+        asm volatile (
+          ".rept 14 \n\t"                               // Execute NOPs to delay exactly the specified number of cycles
+          "nop \n\t"
+          ".endr \n\t"
+        );                       
+    } else {          // 0 bit
+
+    // **************************************************************************
+    // This line is really the only tight goldilocks timing in the whole program!
+    // **************************************************************************
+        digitalWriteDirect(PIN, true);
+        //for (int i = 0; i < NS_TO_CYCLES(T0H) - 2; i++) {__asm__("nop\n\t");}
+        asm volatile(
+          ".rept 31 \n\t"                                // Execute NOPs to delay exactly the specified number of cycles
+          "nop \n\t"
+          ".endr \n\t"   
+        );
+        digitalWriteDirect(PIN, false);
+        //for (int i = 0; i < NS_TO_CYCLES(T0L) - 2; i++) {__asm__("nop\n\t");}
+        asm volatile (
+          ".rept 73 \n\t"                               // Execute NOPs to delay exactly the specified number of cycles
+          "nop \n\t"
+          ".endr \n\t"
+        );
+      
+    }
+    
+    // Note that the inter-bit gap can be as long as you want as long as it doesn't exceed the 5us reset timeout (which is A long time)
+    // Here I have been generous and not tried to squeeze the gap tight but instead erred on the side of lots of extra time.
+    // This has thenice side effect of avoid glitches on very long strings becuase 
+
+    
+}  
+
+  
+inline void sendByte( byte toSend ) {
+    
+    for( int i = 0 ; i < 8 ; i++ ) {
+
+      unsigned char thisBit = bitRead( toSend, 7 );
+      
+      sendBit( thisBit );                // Neopixel wants bit in highest-to-lowest order
+                                                     // so send highest bit (bit #7 in an 8-bit byte since they start at 0)
+      toSend <<= 1;                                    // and then shift left so bit 6 moves into 7, 5 moves into 6, etc
+      
+    }           
+} 
+
+inline void sendPixel( byte r, byte g , byte b )  {  
+  
+  sendByte(g);          // Neopixel wants colors in green then red then blue order
+  sendByte(r);
+  sendByte(b);
+  
+}
+
+
+// Just wait long enough without sending any bots to cause the pixels to latch and display the last sent frame
+
+void showPixels() {
+  delayMicroseconds( (RES / 1000UL) + 1);       // Round up since the delay must be _at_least_ this long (too short might not work, too long not a problem)
+}
+
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// Main program
+//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 //--------------------------------------------------------------------------------------
 // Initial commands
 //--------------------------------------------------------------------------------------
@@ -76,6 +190,9 @@ void setup() {
   while (!Serial) ; // wait for Arduino Serial Monitor
 
   delay(500); // needed to properly boot on first try
+
+  // Set LED pin as output
+  pinMode(PIN, OUTPUT);
 
   // Initialize touchscreen
   tft.begin();
@@ -140,6 +257,7 @@ void setup() {
   root.rewindDirectory();
 
   // Display initial home menu
+  tft.fillScreen(ILI9341_BLACK);
   make_h_menu(0);
 }
 
@@ -165,10 +283,13 @@ TS_Point boop() {
       
       return p;
     }
+    
+  }
+  else {
+    released = true;
   }
   
   // If the touchscreen does not register a touch event, flip released flag and set X, Y values to 0
-  released = true;
   p.x = 0;
   p.y = 0;
   
@@ -195,30 +316,40 @@ void loop() {
   switch (activeMenu) {
     case 1: // Main menu
       if (p.x >= BOXSTART_X && p.x <= BOXSTART_X2 - 10) {
-        if (p.y >= BOXSTART_Y && p.y <= BOXSTART_Y2 - 10) {
-          make_h_menu(1); // Play button selected
-          paused = false; // If paused, play
+        if (p.y >= BOXSTART_Y && p.y <= BOXSTART_Y2 - 10) { // Play/Pause button selected
+          if (playing) {
+            if (paused) {
+              paused = false; // If paused, play
+              make_h_menu(0);
+              make_h_menu(1);
+              break;
+            }
+            paused = true;
+            make_h_menu(0);
+            make_h_menu(1);
+          }
         }
         else if (p.y >= BOXSTART_Y2 && p.y <= BOXSTART_Y2 + BOXSIZE) {
-          make_h_menu(3); // File button selected
           if(playing) { // If playing, do nothing
             break;
           }
+          make_h_menu(3); // File button selected
           make_file_menu(0, 0); // Switch to file menu (page = 0 to clear screen)
         }
       }
       else if (p.x >= BOXSTART_X2 && p.x <= BOXSTART_X2 + BOXSIZE * 2) {
         if (p.y >= BOXSTART_Y && p.y <= BOXSTART_Y2 - 10) {
-          if(paused) {
-            paused = false;
-            stopped = true;
+          if(!paused) {
+            break;
           }
-          else if(playing){
-            paused = true; // If playing, pause
-          }
-          make_h_menu(2); // Pause button selected
+          paused = false;
+          stopped = true;
+          make_h_menu(2); // Stop button selected     
         }
         else if (p.y >= BOXSTART_Y2 && p.y <= BOXSTART_Y2 + BOXSIZE) {
+          if(playing) { // If playing, do nothing
+            break;
+          }
           make_h_menu(4); // Test button selected
           play(1, ""); // Run basic LED strip test
         }
@@ -253,6 +384,7 @@ void loop() {
               page = 1;
               Serial.println("EVENT SELECTED");
               play(2, fileNames[i]); //Event file selected, run event
+              break;
             }
           }
         }
@@ -273,6 +405,7 @@ void play(int type, String arg) {
   playing = true;
   
   // Return to main menu and clear screen
+  tft.fillScreen(ILI9341_BLACK);
   make_h_menu(0);
 
   // Set cursor position and font size
@@ -311,12 +444,16 @@ bool stopCheck() {
   }
   if(stopped) { // If stopped, clear pixels, clear screen
     stopped = false;
-
+    playing = false;
+    
     // Clear screen above buttons
     tft.fillRect(0, 0, 240, 218, ILI9341_BLACK);
+    make_h_menu(0);
 
     return true;
   }
+  tft.setTextSize(1);
+  tft.setTextColor(ILI9341_WHITE);
   return false;
 }
 
@@ -327,41 +464,56 @@ void led_test() {
   // Text Display
   tft.println("Running LED Test 1");
   tft.setCursor(10, 10+8);
+  tft.setTextSize(1);
+  tft.setTextColor(ILI9341_WHITE);
 
-  // Initialize base value for cursor position
-  int base = 10;
+  // Initialize base values for cursor position
+  int ybase = 10;
+  int xbase;
   
   for(int i = 0; i < NUMPIXELS / 60; i++) {
     // Check for pause
     if(stopCheck()) { return; }
 
     // Move cursor to next line and begin text display
-    tft.setCursor(10, base + 8 * (i + 1));
+    tft.setCursor(10, ybase + 8 * (i + 1));
     tft.print("String ");
     tft.print(i);
+    if (i < 10) {
+      xbase = 10 + 8 * 6;
+    }
+    else {
+      xbase = 10 + 9 * 6;
+    }
 
     // Sets string to red
     tft.print(": RED ");
+    xbase = xbase + 6 * 6;
     setStringColor(i, MAX_BRIGHT, 0, 0);
     
     // Check for pause
     if(stopCheck()) { return; }
 
     // Sets string to green
+    tft.setCursor(xbase, ybase + 8 * (i + 1));
     tft.print("GREEN ");
+    xbase = xbase + 6 * 6;
     setStringColor(i, 0, MAX_BRIGHT, 0);
     
     // Check for pause
     if(stopCheck()) { return; }
 
     // Sets string to blue
+    tft.setCursor(xbase, ybase + 8 * (i + 1));
     tft.print("BLUE ");
+    xbase = xbase + 5 * 6;
     setStringColor(i, 0, 0, MAX_BRIGHT);
     
     // Check for pause
     if(stopCheck()) { return; }
 
     // Displays a gradient from red to blue
+    tft.setCursor(xbase, ybase + 8 * (i + 1));
     tft.print("GRAD");
     setStringGrad(i, MAX_BRIGHT, 0, 0, 0, 0, MAX_BRIGHT);
 
@@ -376,12 +528,12 @@ void led_test() {
     
     if(i % 25 == 24) { // If output fills screen, clear screen and set cursor to top again
       tft.fillRect(10, 18, 230, 200, ILI9341_BLACK);
-      base = base - 200;
+      ybase = ybase - 200;
     }
   }
 
   // Print "Done!" at the end
-  tft.setCursor(10, base + 8 * (NUMPIXELS / 60) + 8);
+  tft.setCursor(10, ybase + 8 * (NUMPIXELS / 60) + 8);
   tft.print("Done!");
 }
 
@@ -544,12 +696,27 @@ void setStringColor(int stringNum, byte r, byte g, byte b) {
   for(int i = 0; i < 60; i++) { // Loop through string and set each LED to color
     pixels[i+startPos] = CRGB(r,g,b);
   }
+  
+  //Display LEDs
+  FastLED.show();
+  
+  // Test Custom API  
+//  noInterrupts();
+//  for(int i = 0; i < startPos; i++) {
+//    sendPixel(0,0,0);
+//  }
+//  for(int i = startPos; i < 60; i++) {
+//    sendPixel(r,g,b);
+//  }
+//  for(int i = startPos + 60; i < NUMPIXELS; i++) {
+//    sendPixel(0,0,0);
+//  }
+//  showPixels();
+//  interrupts();
+  
   Serial.print("string ");
   Serial.print(stringNum);
   Serial.println(": solid");
-
-  // Display LEDs
-  FastLED.show();
 }
 
 //--------------------------------------------------------------------------------------
@@ -577,12 +744,11 @@ void setStringGrad(int stringNum, byte ir, byte ig, byte ib, byte fr, byte fg, b
     // steps from initial blue to final blue
     b = min(MAX_BRIGHT, b + (int)(((float)fb - (float)ib) / 60.0)); 
   }
-  Serial.print("string ");
-  Serial.print(stringNum);
-  Serial.println(": gradient");
-
+  
   // Display LEDs
   FastLED.show();
+  
+  return;
 }
 
 //--------------------------------------------------------------------------------------
@@ -598,32 +764,32 @@ void clearPixels() {
 }
 
 //--------------------------------------------------------------------------------------
-//
+// Make home menu. selection highlights selected box.
 //--------------------------------------------------------------------------------------
 void make_h_menu(int selection) {
   switch (selection) {
-    case 1:
+    case 1: // highlight upper left box
       tft.drawRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_WHITE);
       tft.drawRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
       tft.drawRect(BOXSTART_X, BOXSTART_Y2, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
       tft.drawRect(BOXSTART_X2, BOXSTART_Y2, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
       break;
 
-    case 2:
+    case 2: // highlight upper right box
       tft.drawRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
       tft.drawRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_WHITE);
       tft.drawRect(BOXSTART_X, BOXSTART_Y2, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
       tft.drawRect(BOXSTART_X2, BOXSTART_Y2, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
       break;
 
-    case 3:
+    case 3: // highlight lower left box
       tft.drawRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
       tft.drawRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
       tft.drawRect(BOXSTART_X, BOXSTART_Y2, BOXSIZE * 2, BOXSIZE, ILI9341_WHITE);
       tft.drawRect(BOXSTART_X2, BOXSTART_Y2, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
       break;
 
-    case 4:
+    case 4: // highlight lower right box
       tft.drawRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
       tft.drawRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
       tft.drawRect(BOXSTART_X, BOXSTART_Y2, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
@@ -631,30 +797,43 @@ void make_h_menu(int selection) {
       break;
 
     default:
-      //do the pause/play buttons
-      tft.fillScreen(ILI9341_BLACK);
-      tft.fillRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_GREEN);
-      tft.setCursor(BOXSTART_X + 13, BOXSTART_Y + 13);
+      
+      tft.fillRect(BOXSTART_X, BOXSTART_Y, BOXSTART_X2 + BOXSIZE * 2, BOXSTART_Y2 + BOXSIZE, ILI9341_BLACK);
       tft.setTextColor(ILI9341_BLACK);
       tft.setTextSize(2);
-      tft.println("  >");
-      tft.fillRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_RED);
-      tft.setCursor(BOXSTART_X2 + 15, BOXSTART_Y + 13);
-      tft.println(" ||");
+
+      //do the pause/play/stop buttons
+      if (paused) {
+        tft.fillRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_GREEN);
+        tft.setCursor(BOXSTART_X + 13, BOXSTART_Y + 13);
+        tft.println("  >");
+
+        tft.fillRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_RED);
+        tft.setCursor(BOXSTART_X2 + 13, BOXSTART_Y + 13);
+        tft.println("  X");
+      }
+      
+      else if (playing){
+        tft.fillRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_YELLOW);
+        tft.setCursor(BOXSTART_X + 15, BOXSTART_Y + 13);
+        tft.println(" ||");
+      }
+
+      else {
+        //do the button for submenu on files
+        tft.fillRect(BOXSTART_X, BOXSTART_Y2, BOXSIZE * 2, BOXSIZE, ILI9341_YELLOW);
+        tft.setCursor(BOXSTART_X + 10, BOXSTART_Y2 + 13);
+        tft.println("FILES");
   
-      //do the button for submenu on files
-      tft.fillRect(BOXSTART_X, BOXSTART_Y2, BOXSIZE * 2, BOXSIZE, ILI9341_YELLOW);
-      tft.setCursor(BOXSTART_X + 10, BOXSTART_Y2 + 13);
-      tft.println("FILES");
+        //do the test button
+        tft.fillRect(BOXSTART_X2, BOXSTART_Y2, BOXSIZE * 2/3, BOXSIZE, ILI9341_RED);
+        tft.fillRect(BOXSTART_X2 + BOXSIZE * 2/3 , BOXSTART_Y2, BOXSIZE * 2/3 + 2, BOXSIZE, ILI9341_GREEN);
+        tft.fillRect(BOXSTART_X2 + BOXSIZE * 4/3 , BOXSTART_Y2, BOXSIZE * 2/3, BOXSIZE, ILI9341_BLUE);
+        tft.setCursor(BOXSTART_X2 + 16, BOXSTART_Y2 + 13);
+        tft.println("TEST");
   
-      //do the test button
-      tft.fillRect(BOXSTART_X2, BOXSTART_Y2, BOXSIZE * 2/3, BOXSIZE, ILI9341_RED);
-      tft.fillRect(BOXSTART_X2 + BOXSIZE * 2/3 , BOXSTART_Y2, BOXSIZE * 2/3 + 2, BOXSIZE, ILI9341_GREEN);
-      tft.fillRect(BOXSTART_X2 + BOXSIZE * 4/3 , BOXSTART_Y2, BOXSIZE * 2/3, BOXSIZE, ILI9341_BLUE);
-      tft.setCursor(BOXSTART_X2 + 16, BOXSTART_Y2 + 13);
-      tft.println("TEST");
-  
-      tft.setCursor(30, 280);
+        tft.setCursor(30, 280);
+      }
       break;
   }
 
