@@ -38,16 +38,14 @@ Adafruit_FT6206 ts = Adafruit_FT6206();
 #define MAX_LINE_LENGTH 4
 
 // Set pin for SD card
-const int chipSelect = 4;
+const byte chipSelect = 4;
 
 // Global variables for file management
-int page = 1;
-File root;
+byte page = 1;
 String fileNames[255];
-int lastFile = 0;
-int lastPage = 0;
-int isEventFile[255];
-int isDir[255];
+byte lastFile;
+byte lastPage;
+byte fileType[255];
 
 // Switch for pausing events or tests
 bool paused = false;
@@ -62,7 +60,7 @@ bool playing = false;
 bool released = true;
 
 // 0 = none; 1 = h_menu; 2 = file_menu
-int activeMenu = 0;
+byte activeMenu = 0;
 
 // Array of pixels
 CRGB pixels[NUMPIXELS];
@@ -101,45 +99,7 @@ void setup () {
   }
   Serial.println("card initialized.");
 
-  // Save file names to fileNames for printing in the file menu and mark flags for directories and event files
-  root = SD.open("/");
-  File entry = root.openNextFile();
-  int i = 0;
-  String k = "";
-
-  // This loop saves all filenames in the root directory to an array of strings. This system is only temporary and will be changed for better file menu operation.
-  while (entry) {
-    fileNames[i] = "";
-    isDir[i] = 0;
-    k = entry.name();
-    isEventFile[i] = 0;
-    if (!k.startsWith("_")) { // All files that start with underlines are hidden or "deleted"
-      if (entry.isDirectory()) { // If entry is a directory, flag it as such
-        isDir[i] = 1;
-      }
-      else {
-        if (k.substring(k.indexOf('.')) == ".I3R") { //If the file extension is .I3R, mark as event file
-          isEventFile[i] = 1;
-          Serial.println(k);
-        }
-      }
-      fileNames[i] = k;
-      i++;
-
-      // Keep track of the number of files in the root directory
-      lastFile++;
-    }
-    entry = root.openNextFile();
-  }
-
-  // Update number of pages based on number of files
-  lastPage = (lastFile - (lastFile % 25)) / 25;
-  if (lastFile % 25 > 0) {
-    lastPage++;
-  }
-
-  // Returns to the beginning of the root directory
-  root.rewindDirectory();
+  parseDir("/");
 
   // Display initial home menu
   tft.fillScreen(ILI9341_BLACK);
@@ -254,7 +214,7 @@ void loop () {
       }
       else { // Checks to see if an event file is touched
         for (int i = 0; i < lastFile; i++) {
-          if (isEventFile[i] == 1) {
+          if (fileType[i] == 2) {
             int j = 10 + 8 * (i % 25);
             if (p.y >= j && p.y <= j + 8) {
               page = 1;
@@ -267,6 +227,49 @@ void loop () {
       }
       break;
   }
+}
+
+//--------------------------------------------------------------------------------------
+// Parse directory
+//--------------------------------------------------------------------------------------
+void parseDir (String path) {
+  File dir = SD.open(path);
+  File entry = dir.openNextFile();
+  int i = 0;
+  String k = "";
+
+  lastFile = 0;
+  lastPage = 0;
+  
+  while (entry) {
+    fileNames[i] = "";
+    k = entry.name();
+    if (!k.startsWith("_")) { // All files that start with underlines are hidden or "deleted"
+      if (entry.isDirectory()) { // If entry is a directory, flag it as such
+        fileType[i] = 1;
+        fileNames[i] = k;
+        i++;
+        lastFile++;
+      }
+      else if (k.substring(k.indexOf('.')) == ".I3R") { //If the file extension is .I3R, mark as event file
+        fileType[i] = 2;
+        Serial.println(k);
+        fileNames[i] = k;
+        i++;
+        lastFile++;
+      }
+    }
+    entry = dir.openNextFile();
+  }
+  
+  // Update number of pages based on number of files
+  lastPage = (lastFile - (lastFile % 25)) / 25;
+  if (lastFile % 25 > 0) {
+    lastPage++;
+  }
+
+  // Returns to the beginning of the root directory
+  dir.rewindDirectory();
 }
 
 //--------------------------------------------------------------------------------------
@@ -512,6 +515,7 @@ void displayEvents (String filename) {
       Serial.println("END OF EVENT");
       paused = true;
       newevent = true;
+      make_h_menu(0);
     }
     else {
       switch (pos) {
@@ -762,11 +766,11 @@ void displayFiles (int page) {
       break;
     }
 
-    if (isEventFile[i] == 1) {
+    if (fileType[i] == 2) {
       tft.setTextColor(ILI9341_GREEN);
     }
 
-    else if (isDir[i] == 1) {
+    else if (fileType[i] == 1) {
       tft.setTextColor(ILI9341_BLUE);
     }
 
