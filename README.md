@@ -9,4 +9,4 @@ Hardware: Elim Cheung, Greg Sullivan
 
 Python software: Elim Cheung, John Evans
 
-Arduino software: John Evans
+Arduino software: John Evans, Elim Cheung
