@@ -4,7 +4,6 @@
 #include <Wire.h>             // this is needed for FT6206
 #include <Adafruit_FT6206.h>  // Touch library
 #include <SD.h>               // SD card library
-#include "digitalWriteFastDue.h" // Library for much faster pin writes
 #include <FastLED.h>          // FastLED library
 
 #ifdef __AVR__
@@ -21,10 +20,10 @@ Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
 Adafruit_FT6206 ts = Adafruit_FT6206();
 
 // Set button sizes and locations
-#define BOXSIZE 40
-#define BOXSTART_X 35
-#define BOXSTART_X2 125
-#define BOXSTART_Y 270
+#define BUTTONSIZE_Y 40
+#define BUTTONSTART_X 35
+#define BUTTONSTART_X2 125
+#define BUTTONSTART_Y 270
 
 // Set maximum brightness
 #define MAX_BRIGHT 100
@@ -39,16 +38,17 @@ Adafruit_FT6206 ts = Adafruit_FT6206();
 #define MAX_LINE_LENGTH 4
 
 // Set pin for SD card
-const int chipSelect = 4;
+const byte chipSelect = 4;
 
 // Global variables for file management
-int page = 1;
-File root;
+const byte filesPerPage = 8;
 String fileNames[255];
-int lastFile = 0;
-int lastPage = 0;
-int isEventFile[255];
-int isDir[255];
+String workingDir = "/";
+byte page = 1;
+byte lastFile;
+byte lastPage;
+byte fileType[255];
+byte filesOnScreen;
 
 // Switch for pausing events or tests
 bool paused = false;
@@ -63,123 +63,10 @@ bool playing = false;
 bool released = true;
 
 // 0 = none; 1 = h_menu; 2 = file_menu
-int activeMenu = 0;
+byte activeMenu = 0;
 
 // Array of pixels
 CRGB pixels[NUMPIXELS];
-
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-// Custom Neopixel Library
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-// Currently, this doesn't work. In order to fix this, need to find time length of for loops in nanoseconds through trial and error. Use this to 
-// replace assembler loops.
-//
-//
-//
-
-// These are the timing constraints taken mostly from the WS2812 datasheets 
-// These are chosen to be conservative and avoid problems rather than for maximum throughput 
-
-#define T1H  900    // Width of a 1 bit in ns
-#define T1L  600    // Width of a 1 bit in ns
-
-#define T0H  400    // Width of a 0 bit in ns
-#define T0L  900    // Width of a 0 bit in ns
-
-#define RES 6000    // Width of the low gap between bits to cause a frame to latch
-
-// Here are some convience defines for using nanoseconds specs to generate actual CPU delays
-
-#define NS_PER_SEC (1000000000L)          // Note that this has to be SIGNED since we want to be able to check for negative values of derivatives
-
-#define CYCLES_PER_SEC (F_CPU)
-
-#define NS_PER_CYCLE ( NS_PER_SEC / CYCLES_PER_SEC )
-
-#define NS_TO_CYCLES(n) ( (n) / NS_PER_CYCLE )
-
-// Actually send a bit to the string. We must to drop to asm to enusre that the complier does
-// not reorder things and make it so the delay happens in the wrong place.
-
-inline void sendBit ( bool bitVal ) {
-  
-    if (  bitVal ) {        // 1 bit
-        digitalWriteDirect(PIN, true);
-        //for (int i = 0; i < NS_TO_CYCLES(T1H) - 2; i++) {__asm__("nop\n\t");}
-        asm volatile (
-          ".rept 48 \n\t"                                // Execute NOPs to delay exactly the specified number of cycles
-          "nop \n\t"
-          ".endr \n\t"
-        );
-        digitalWriteDirect(PIN, false);
-        //for (int i = 0; i < NS_TO_CYCLES(T1L) - 2; i++) {__asm__("nop\n\t");}
-        asm volatile (
-          ".rept 14 \n\t"                               // Execute NOPs to delay exactly the specified number of cycles
-          "nop \n\t"
-          ".endr \n\t"
-        );                       
-    } else {          // 0 bit
-
-    // **************************************************************************
-    // This line is really the only tight goldilocks timing in the whole program!
-    // **************************************************************************
-        digitalWriteDirect(PIN, true);
-        //for (int i = 0; i < NS_TO_CYCLES(T0H) - 2; i++) {__asm__("nop\n\t");}
-        asm volatile(
-          ".rept 31 \n\t"                                // Execute NOPs to delay exactly the specified number of cycles
-          "nop \n\t"
-          ".endr \n\t"   
-        );
-        digitalWriteDirect(PIN, false);
-        //for (int i = 0; i < NS_TO_CYCLES(T0L) - 2; i++) {__asm__("nop\n\t");}
-        asm volatile (
-          ".rept 73 \n\t"                               // Execute NOPs to delay exactly the specified number of cycles
-          "nop \n\t"
-          ".endr \n\t"
-        );
-      
-    }
-    
-    // Note that the inter-bit gap can be as long as you want as long as it doesn't exceed the 5us reset timeout (which is A long time)
-    // Here I have been generous and not tried to squeeze the gap tight but instead erred on the side of lots of extra time.
-    // This has thenice side effect of avoid glitches on very long strings becuase 
-
-    
-}  
-
-  
-inline void sendByte ( byte toSend ) {
-    
-    for ( int i = 0 ; i < 8 ; i++ ) {
-
-      unsigned char thisBit = bitRead( toSend, 7 );
-      
-      sendBit( thisBit );                // Neopixel wants bit in highest-to-lowest order
-                                                     // so send highest bit (bit #7 in an 8-bit byte since they start at 0)
-      toSend <<= 1;                                    // and then shift left so bit 6 moves into 7, 5 moves into 6, etc
-      
-    }           
-} 
-
-inline void sendPixel ( byte r, byte g , byte b )  {  
-  
-  sendByte(g);          // Neopixel wants colors in green then red then blue order
-  sendByte(r);
-  sendByte(b);
-  
-}
-
-
-// Just wait long enough without sending any bots to cause the pixels to latch and display the last sent frame
-
-void showPixels () {
-  delayMicroseconds( (RES / 1000UL) + 1);       // Round up since the delay must be _at_least_ this long (too short might not work, too long not a problem)
-}
-
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-// Main program
-//+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 //--------------------------------------------------------------------------------------
 // Initial commands
@@ -214,46 +101,6 @@ void setup () {
     return;
   }
   Serial.println("card initialized.");
-
-  // Save file names to fileNames for printing in the file menu and mark flags for directories and event files
-  root = SD.open("/");
-  File entry = root.openNextFile();
-  int i = 0;
-  String k = "";
-
-  // This loop saves all filenames in the root directory to an array of strings. This system is only temporary and will be changed for better file menu operation.
-  while (entry) {
-    fileNames[i] = "";
-    isDir[i] = 0;
-    k = entry.name();
-    isEventFile[i] = 0;
-    if (!k.startsWith("_")) { // All files that start with underlines are hidden or "deleted"
-      if (entry.isDirectory()) { // If entry is a directory, flag it as such
-        isDir[i] = 1;
-      }
-      else {
-        if (k.substring(k.indexOf('.')) == ".I3R") { //If the file extension is .I3R, mark as event file
-          isEventFile[i] = 1;
-          Serial.println(k);
-        }
-      }
-      fileNames[i] = k;
-      i++;
-
-      // Keep track of the number of files in the root directory
-      lastFile++;
-    }
-    entry = root.openNextFile();
-  }
-
-  // Update number of pages based on number of files
-  lastPage = (lastFile - (lastFile % 25)) / 25;
-  if (lastFile % 25 > 0) {
-    lastPage++;
-  }
-
-  // Returns to the beginning of the root directory
-  root.rewindDirectory();
 
   // Display initial home menu
   tft.fillScreen(ILI9341_BLACK);
@@ -314,8 +161,8 @@ void loop () {
   // Prints buttons on display and responds to touch events
   switch (activeMenu) {
     case 1: // Main menu
-      if (p.y >= BOXSTART_Y && p.y <= BOXSTART_Y + BOXSIZE) {
-        if (p.x >= BOXSTART_X && p.x <= BOXSTART_X2 - 10) { // Play or Pause or File button selected
+      if (p.y >= BUTTONSTART_Y && p.y <= BUTTONSTART_Y + BUTTONSIZE_Y) {
+        if (p.x >= BUTTONSTART_X && p.x <= BUTTONSTART_X2 - 10) { // Play or Pause or File button selected
           if (playing) {
             if (paused) {
               paused = false; // If paused, play
@@ -327,9 +174,10 @@ void loop () {
             break;
           }
           make_h_menu(3); // Else file button selected
-          make_file_menu(0, 0); // Switch to file menu (page = 0 to clear screen)
+          page = 0;
+          make_file_menu(0, true); // Switch to file menu (page = 0 to clear screen)
         }
-        else if (p.x >= BOXSTART_X2 && p.x <= BOXSTART_X2 + BOXSIZE * 2) {
+        else if (p.x >= BUTTONSTART_X2 && p.x <= BUTTONSTART_X2 + BUTTONSIZE_Y * 2) {
           if (playing) { // If paused, stop button selected
             if (!paused) {
               break;
@@ -346,41 +194,109 @@ void loop () {
       break;
 
     case 2: // File menu
-      if (p.y >= BOXSTART_Y && p.y <= BOXSTART_Y + BOXSIZE) {
-        if (p.x >= BOXSTART_X && p.x <= BOXSTART_X2 - 10) { // Back button selected
+      if (p.y >= BUTTONSTART_Y && p.y <= BUTTONSTART_Y + BUTTONSIZE_Y) {
+        if (p.x >= BUTTONSTART_X && p.x <= BUTTONSTART_X2 - 10) { // Back button selected
           if (page >= 2) { // If not on first page, display previous page
-            page = page - 1; // Move back one page
-            make_file_menu(page, 1);
+            page -= 1; // Move back one page
+            make_file_menu(1, false);
           }
-          else { // Else, return to main menu
-            tft.drawRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_WHITE);
-            tft.drawRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
+          else if (workingDir.lastIndexOf('/') == 0) { // Else, return to main menu
+            tft.drawRect(BUTTONSTART_X, BUTTONSTART_Y, BUTTONSIZE_Y * 2, BUTTONSIZE_Y, ILI9341_WHITE);
+            tft.drawRect(BUTTONSTART_X2, BUTTONSTART_Y, BUTTONSIZE_Y * 2, BUTTONSIZE_Y, ILI9341_BLACK);
             tft.fillScreen(ILI9341_BLACK);
             make_h_menu(0);
           }
+          else {
+            workingDir = workingDir.substring(0,workingDir.lastIndexOf('/'));
+            workingDir = workingDir.substring(0,workingDir.lastIndexOf('/') + 1);
+            Serial.println("moved to new working directory");
+            Serial.println(workingDir);
+            page = 1;
+            make_file_menu(0, true);
+          }
         }
-        else if (p.x >= BOXSTART_X2 && p.x <= BOXSTART_X2 + BOXSIZE * 2) { // Next button selected
-          if (page < lastPage) { //If on last page, do nothing
-            page = page + 1; // Move forward one page
-            make_file_menu(page, 2);
+        else if (p.x >= BUTTONSTART_X2 && p.x <= BUTTONSTART_X2 + BUTTONSIZE_Y * 2) { // Next button selected
+          if (page < lastPage) { // If on last page, do nothing
+            page += 1; // Move forward one page
+            make_file_menu(2, false);
           }
         }
       }
       else { // Checks to see if an event file is touched
-        for (int i = 0; i < lastFile; i++) {
-          if (isEventFile[i] == 1) {
-            int j = 10 + 8 * (i % 25);
-            if (p.y >= j && p.y <= j + 8) {
-              page = 1;
-              Serial.println("EVENT SELECTED");
-              play(2, fileNames[i]); //Event file selected, run event
-              break;
+        int xstart;
+        int ystart;
+        int j;
+        for (int i = 0; i < filesOnScreen; i++) {
+          xstart = BUTTONSTART_X - 16 + (i % 2) * (BUTTONSTART_X2 + 16 - BUTTONSTART_X);
+          ystart = 10 + (int(i / 2) % 6) * (BUTTONSIZE_Y + 10);
+          if ((p.y >= ystart && p.y <= ystart + BUTTONSIZE_Y) && (p.x >= xstart && p.x <= xstart + BUTTONSIZE_Y * 2 + 16)) {
+            j = i + (page - 1) * filesPerPage;
+            switch (fileType[j]) {
+              case 1:
+                workingDir += fileNames[j] + "/";
+                page = 0;
+                Serial.println("moved to new working directory");
+                Serial.println(workingDir);
+                make_file_menu(0, true);
+                break;
+              
+              case 2:
+                play(2, fileNames[j]);
+                break;
             }
           }
         }
       }
       break;
   }
+}
+
+//--------------------------------------------------------------------------------------
+// Parse directory
+//--------------------------------------------------------------------------------------
+void parseDir (String path) {
+  File dir = SD.open(path);
+  
+  // Returns to the beginning of the root directory
+  dir.rewindDirectory();
+  
+  File entry = dir.openNextFile();
+  int i = 0;
+  String k = "";
+
+  lastFile = 0;
+  lastPage = 0;
+  
+  while (entry) {
+    fileNames[i] = "";
+    k = entry.name();
+    if (!k.startsWith("_")) { // All files that start with underlines are hidden or "deleted"
+      if (entry.isDirectory()) { // If entry is a directory, flag it as such
+        fileType[i] = 1;
+        fileNames[i] = k;
+        i++;
+        lastFile++;
+        Serial.println(k);
+      }
+      else if (k.substring(k.indexOf('.')) == ".I3R") { //If the file extension is .I3R, mark as event file
+        fileType[i] = 2;
+        fileNames[i] = k;
+        i++;
+        lastFile++;
+        Serial.println(k);
+      }
+    }
+    entry = dir.openNextFile();
+  }
+  
+  // Update number of pages based on number of files
+  lastPage = (lastFile - (lastFile % filesPerPage)) / filesPerPage;
+  if (lastFile % filesPerPage > 0) {
+    lastPage++;
+  }
+
+  dir.close();
+  entry.close();
 }
 
 //--------------------------------------------------------------------------------------
@@ -547,7 +463,7 @@ void displayEvents (String filename) {
   int ledList[NUMPIXELS];
   CRGB color[NUMPIXELS];
   int frameIndicies[255];
-  File file = SD.open(filename);
+  File file = SD.open(workingDir + filename);
 
   //Text display NEEDS UPDATING
   tft.print(filename);
@@ -626,6 +542,7 @@ void displayEvents (String filename) {
       Serial.println("END OF EVENT");
       paused = true;
       newevent = true;
+      make_h_menu(0);
     }
     else {
       switch (pos) {
@@ -690,20 +607,6 @@ void setStringColor (int stringNum, byte r, byte g, byte b) {
   //Display LEDs
   FastLED.show();
   
-  // Test Custom API  
-//  noInterrupts();
-//  for (int i = 0; i < startPos; i++) {
-//    sendPixel(0,0,0);
-//  }
-//  for (int i = startPos; i < 60; i++) {
-//    sendPixel(r,g,b);
-//  }
-//  for (int i = startPos + 60; i < NUMPIXELS; i++) {
-//    sendPixel(0,0,0);
-//  }
-//  showPixels();
-//  interrupts();
-  
   Serial.print("string ");
   Serial.print(stringNum);
   Serial.println(": solid");
@@ -756,23 +659,24 @@ void clearPixels () {
 //--------------------------------------------------------------------------------------
 // Make home menu. selection highlights selected box.
 //--------------------------------------------------------------------------------------
-void make_h_menu (int selection) {
+void make_h_menu (int selection) {  
+  activeMenu = 1;
   switch (selection) {
     case 1: // highlight left box
-      tft.drawRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_WHITE);
-      tft.drawRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
+      tft.drawRect(BUTTONSTART_X, BUTTONSTART_Y, BUTTONSIZE_Y * 2, BUTTONSIZE_Y, ILI9341_WHITE);
+      tft.drawRect(BUTTONSTART_X2, BUTTONSTART_Y, BUTTONSIZE_Y * 2, BUTTONSIZE_Y, ILI9341_BLACK);
       make_h_menu(0);
       break;
 
     case 2: // highlight right box
-      tft.drawRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
-      tft.drawRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_WHITE);
+      tft.drawRect(BUTTONSTART_X, BUTTONSTART_Y, BUTTONSIZE_Y * 2, BUTTONSIZE_Y, ILI9341_BLACK);
+      tft.drawRect(BUTTONSTART_X2, BUTTONSTART_Y, BUTTONSIZE_Y * 2, BUTTONSIZE_Y, ILI9341_WHITE);
       make_h_menu(0);
       break;
 
     default:
       // Clear boxes
-      tft.fillRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 5, BOXSIZE, ILI9341_BLACK);
+      tft.fillRect(BUTTONSTART_X2, BUTTONSTART_Y, BUTTONSIZE_Y * 5, BUTTONSIZE_Y, ILI9341_BLACK);
 
       // Set text presets
       tft.setTextColor(ILI9341_BLACK);
@@ -780,62 +684,60 @@ void make_h_menu (int selection) {
 
       if (paused) {
         // Make play button
-        tft.fillRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_GREEN);
-        tft.setCursor(BOXSTART_X + 35, BOXSTART_Y + 13);
+        tft.fillRect(BUTTONSTART_X, BUTTONSTART_Y, BUTTONSIZE_Y * 2, BUTTONSIZE_Y, ILI9341_GREEN);
+        tft.setCursor(BUTTONSTART_X + 35, BUTTONSTART_Y + 13);
         tft.println(">");
 
         // Make stop button
-        tft.fillRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_RED);
-        tft.setCursor(BOXSTART_X2 + 33, BOXSTART_Y + 13);
+        tft.fillRect(BUTTONSTART_X2, BUTTONSTART_Y, BUTTONSIZE_Y * 2, BUTTONSIZE_Y, ILI9341_RED);
+        tft.setCursor(BUTTONSTART_X2 + 33, BUTTONSTART_Y + 13);
         tft.println("X");
       }
       
       else if (playing) {
         // Make pause button
-        tft.fillRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_YELLOW);
-        tft.setCursor(BOXSTART_X + 29, BOXSTART_Y + 13);
+        tft.fillRect(BUTTONSTART_X, BUTTONSTART_Y, BUTTONSIZE_Y * 2, BUTTONSIZE_Y, ILI9341_YELLOW);
+        tft.setCursor(BUTTONSTART_X + 29, BUTTONSTART_Y + 13);
         tft.println("||");
       }
 
       else {
-        //do the button for submenu on files
-        tft.fillRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_YELLOW);
-        tft.setCursor(BOXSTART_X + 10, BOXSTART_Y + 13);
+        // Make files button
+        tft.fillRect(BUTTONSTART_X, BUTTONSTART_Y, BUTTONSIZE_Y * 2, BUTTONSIZE_Y, ILI9341_YELLOW);
+        tft.setCursor(BUTTONSTART_X + 10, BUTTONSTART_Y + 13);
         tft.println("FILES");
   
-        //do the test button
-        tft.fillRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 2/3, BOXSIZE, ILI9341_RED);
-        tft.fillRect(BOXSTART_X2 + BOXSIZE * 2/3 , BOXSTART_Y, BOXSIZE * 2/3 + 2, BOXSIZE, ILI9341_GREEN);
-        tft.fillRect(BOXSTART_X2 + BOXSIZE * 4/3 , BOXSTART_Y, BOXSIZE * 2/3, BOXSIZE, ILI9341_BLUE);
-        tft.setCursor(BOXSTART_X2 + 16, BOXSTART_Y + 13);
+        // Make test button
+        tft.fillRect(BUTTONSTART_X2, BUTTONSTART_Y, BUTTONSIZE_Y * 2/3, BUTTONSIZE_Y, ILI9341_RED);
+        tft.fillRect(BUTTONSTART_X2 + BUTTONSIZE_Y * 2/3 , BUTTONSTART_Y, BUTTONSIZE_Y * 2/3 + 2, BUTTONSIZE_Y, ILI9341_GREEN);
+        tft.fillRect(BUTTONSTART_X2 + BUTTONSIZE_Y * 4/3 , BUTTONSTART_Y, BUTTONSIZE_Y * 2/3, BUTTONSIZE_Y, ILI9341_BLUE);
+        tft.setCursor(BUTTONSTART_X2 + 16, BUTTONSTART_Y + 13);
         tft.println("TEST");
       }
       break;
   }
-
-  activeMenu = 1;
   return;
 }
 
 //--------------------------------------------------------------------------------------
 //
 //--------------------------------------------------------------------------------------
-void make_file_menu (int page, int selection) {
+void make_file_menu (int selection, bool changedDir) {
   activeMenu = 2;
   switch (selection) {
     case 1:
       if (page >= 1) {
-        tft.drawRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_WHITE);
-        tft.drawRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
-        make_file_menu(page, 0);
+        tft.drawRect(BUTTONSTART_X, BUTTONSTART_Y, BUTTONSIZE_Y * 2, BUTTONSIZE_Y, ILI9341_WHITE);
+        tft.drawRect(BUTTONSTART_X2, BUTTONSTART_Y, BUTTONSIZE_Y * 2, BUTTONSIZE_Y, ILI9341_BLACK);
+        make_file_menu(0, changedDir);
       }
       break;
 
     case 2:
       if (page <= lastPage) {
-        tft.drawRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
-        tft.drawRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_WHITE);
-        make_file_menu(page, 0);
+        tft.drawRect(BUTTONSTART_X, BUTTONSTART_Y, BUTTONSIZE_Y * 2, BUTTONSIZE_Y, ILI9341_BLACK);
+        tft.drawRect(BUTTONSTART_X2, BUTTONSTART_Y, BUTTONSIZE_Y * 2, BUTTONSIZE_Y, ILI9341_WHITE);
+        make_file_menu(0, changedDir);
       }
       break;
 
@@ -845,24 +747,24 @@ void make_file_menu (int page, int selection) {
         page = 1;
       }
       tft.fillRect(0, 0, 240, 270, ILI9341_BLACK);
-      tft.fillRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_YELLOW);
-      tft.setCursor(BOXSTART_X + 16, BOXSTART_Y + 13);
+      displayFiles(changedDir);
+      tft.fillRect(BUTTONSTART_X, BUTTONSTART_Y, BUTTONSIZE_Y * 2, BUTTONSIZE_Y, ILI9341_YELLOW);
+      tft.setCursor(BUTTONSTART_X + 16, BUTTONSTART_Y + 13);
       tft.setTextColor(ILI9341_BLACK);
       tft.setTextSize(2);
       tft.println("BACK");
       if (page < lastPage) {
-        tft.fillRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_YELLOW);
-        tft.setCursor(BOXSTART_X2 + 16, BOXSTART_Y + 13);
+        tft.fillRect(BUTTONSTART_X2, BUTTONSTART_Y, BUTTONSIZE_Y * 2, BUTTONSIZE_Y, ILI9341_YELLOW);
+        tft.setCursor(BUTTONSTART_X2 + 16, BUTTONSTART_Y + 13);
         tft.setTextColor(ILI9341_BLACK);
         tft.setTextSize(2);
         tft.println("MORE");
       }
       else {
-        tft.fillRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
+        tft.fillRect(BUTTONSTART_X2, BUTTONSTART_Y, BUTTONSIZE_Y * 2, BUTTONSIZE_Y, ILI9341_BLACK);
       }
-      tft.drawRect(BOXSTART_X, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
-      tft.drawRect(BOXSTART_X2, BOXSTART_Y, BOXSIZE * 2, BOXSIZE, ILI9341_BLACK);
-      displayFiles(page);
+      tft.drawRect(BUTTONSTART_X, BUTTONSTART_Y, BUTTONSIZE_Y * 2, BUTTONSIZE_Y, ILI9341_BLACK);
+      tft.drawRect(BUTTONSTART_X2, BUTTONSTART_Y, BUTTONSIZE_Y * 2, BUTTONSIZE_Y, ILI9341_BLACK);
       break;
   }
 }
@@ -870,9 +772,59 @@ void make_file_menu (int page, int selection) {
 //--------------------------------------------------------------------------------------
 //
 //--------------------------------------------------------------------------------------
-void displayFiles (int page) {
-  uint8_t i = 25 * (page - 1);
-  uint8_t j = 0;
+void displayFiles (bool changedDir) {
+  if (changedDir) {
+    tft.setCursor(10, 10);
+    tft.setTextColor(ILI9341_WHITE);
+    tft.setTextSize(1);
+    tft.println("Loading Files...");
+    
+    parseDir(workingDir);
+    
+    tft.fillRect(10, 10, 10+6*16, 10+8, ILI9341_BLACK);
+  }
+  
+  int xstart;
+  int ystart;
+  int j;
+  String filename;
+  filesOnScreen = 0;
+  
+  for (int i = filesPerPage * (page - 1); i < filesPerPage * page; i++) {
+    if (i + 1 > lastFile) {
+      // no more files
+      break;
+    }
+
+    j = i - (page - 1) * filesPerPage;
+    
+    xstart = BUTTONSTART_X - 16 + (j % 2) * (BUTTONSTART_X2 + 16 - BUTTONSTART_X);
+    ystart = 10 + (int(j / 2) % 6) * (BUTTONSIZE_Y + 10);
+    
+    switch (fileType[i]) {
+      case 1:
+        tft.fillRect(xstart, ystart, BUTTONSIZE_Y * 2 + 16, BUTTONSIZE_Y, ILI9341_BLUE);
+        filename = fileNames[i];
+        break;
+        
+      case 2:
+        tft.fillRect(xstart, ystart, BUTTONSIZE_Y * 2 + 16, BUTTONSIZE_Y, ILI9341_GREEN);
+        filename = fileNames[i].substring(0, fileNames[i].indexOf('.'));
+        break;
+    }
+    
+    tft.setCursor(xstart + 1, ystart + 13);
+    tft.setTextColor(ILI9341_BLACK);
+    tft.setTextSize(2);
+    tft.println(filename);
+    
+    filesOnScreen++;
+  }
+  
+  // Build what happens when a directory is selected
+  // 
+  // 
+  // 
 
   tft.setCursor(180, 240);
   tft.setTextSize(1);
@@ -880,27 +832,104 @@ void displayFiles (int page) {
   tft.print("page ");
   tft.print(page);
   tft.setCursor(10, 10);
+}
 
-  while (i <= 25 * page) {
-    tft.setTextColor(ILI9341_WHITE);
-    tft.setCursor(10, 10 + 8 * j);
-    j = j + 1;
+void pullFile(String filename) {
+  if (SD.exists(filename)) {
+    SD.remove(filename);
+  }
+  
+  File myFile = SD.open(filename, FILE_WRITE);
+  delay(100);
+  
+  String input;
+  char ch;
+  String led;
+  String r;
+  String g;
+  String b;
+  int pos = 0;
+  bool done = false;
 
-    if (i >= lastFile) {
-      // no more files
-      break;
+  while (!done){
+    nextpulse();
+    if (Serial.available() > 0) {
+      char ch = Serial.read();
+      switch (ch) {
+        case 'e': // end of sending
+          myFile.close();
+          done = true;
+          break;
+          
+        case 'x': //start a new event
+          myFile.println('x');
+          nextpulse();
+          break;
+          
+        case 'n': //end of this time bin
+          myFile.println('n');
+          nextpulse();
+          break;
+          
+        case '(': //indicater of pulse info
+          pos = 0 ;
+          input = "";
+          break;
+          
+        case ',':
+        case ')':
+          switch (pos) {
+            case 0:
+              //led = input.toInt();
+              led = input;
+              //myFile.write(led);
+              myFile.println(led);
+              break;
+              
+            case 1:
+              //r = input.toInt();
+              r = input;
+              //myFile.write(r);
+              myFile.println(r);
+              break;
+              
+            case 2:
+              //g = input.toInt();
+              g = input;
+              //myFile.write(g);
+              myFile.println(g);
+              break;
+              
+            case 3:
+              //b = input.toInt();
+              b = input;
+              //myFile.write(b);
+              myFile.println(b);
+              break;
+          }
+          pos += 1;
+          input = "";
+          if (ch == ')') {
+            nextpulse();
+          }
+          break;
+          
+        default:
+          if (isDigit(ch)) {
+            input += ch;
+          }
+          break;
+      }
     }
-
-    if (isEventFile[i] == 1) {
-      tft.setTextColor(ILI9341_GREEN);
-    }
-
-    else if (isDir[i] == 1) {
-      tft.setTextColor(ILI9341_BLUE);
-    }
-
-    tft.print(fileNames[i]);
-
-    i++;
   }
 }
+
+//signal python: next pulse
+void nextpulse() {
+  Serial.write("n");
+  delay(2);
+  Serial.flush();
+}
+
+
+
