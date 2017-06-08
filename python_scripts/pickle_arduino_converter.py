@@ -9,6 +9,7 @@ from __future__ import print_function
 ######################################################################################
 
 from optparse import OptionParser
+import os
 from os.path import expandvars
 import cPickle
 import numpy as np
@@ -37,7 +38,7 @@ def eventToArray (event, maxBrightness, frames):
 
     eventArray = np.array([])
 
-    for i, pulse in enumerate(event):
+    for i, pulse in enumerate(event['hits']):
         [r, g, b] = wav2RGB(wavelength[i])
 
         r  *= brightness[i]
@@ -132,7 +133,14 @@ print (' ')
 ##### Define basic variables
 ##################################################################################
 all_events = cPickle.load(open(infile, 'rb'))
-output     = open(outfile, 'w')
+dir_path   = os.path.dirname(os.path.realpath(__file__)) + outfile
+
+if not os.path.exists(os.path.dirname(dir_path)):
+    try:
+        os.makedirs(os.path.dirname(dir_path))
+    except OSError as exc: # Guard against race condition
+        if exc.errno != errno.EEXIST:
+            raise
 
 if nevents == 0: nevents = len(all_events)
 
@@ -142,8 +150,13 @@ nth = 0
 ##################################################################################
 ##### Send events to text file: hit = [time, dom, string, charge]
 ##################################################################################
+
 for i, event in enumerate(all_events):
     if nth == nevents: break
+
+    output = open(dirpath + event['pid'] + ".I3R", 'w')
+
+    output.write("q\n%s\n%s\n%s\n%s\n%s\n" % (event['date'], event['id'], event['energy'], event['zenith'], event['pid']))
 
     for item in eventToArray(event, max_brightness, frames):
         output.write("%s\n" % item)
@@ -151,4 +164,4 @@ for i, event in enumerate(all_events):
 
     nth += 1
 
-output.close()
+    output.close()
