@@ -532,7 +532,11 @@ void displayEvents (String filename) {
   int numLeds = 0;
   int ledList[NUMPIXELS];
   CRGB color[NUMPIXELS];
-  int frameIndicies[255];
+  int frameIndicies[1000];
+
+  memset(ledList, 0, sizeof(ledList));
+  memset(color, CRGB(0,0,0), sizeof(color));
+  memset(frameIndicies, 0, sizeof(frameIndicies));
 
   currentEvent = 0;
   int j = 0;
