@@ -125,8 +125,8 @@ outdir          = options.outdir
 nevents         = options.nevents
 frames          = options.frames
 
-outdir = "./" + outdir if not outdir.startswith(('/','.','~')) 
-outdir = outdir + "/" if not outdir.endswith('/')
+outdir = outdir if outdir.startswith(('/','.','~')) else "./" + outdir
+outdir = outdir if outdir.endswith('/') else outdir + "/"
 
 print ('in_file: {0}'.format(infile))
 print ('out_dir: {0}'.format(outdir))
