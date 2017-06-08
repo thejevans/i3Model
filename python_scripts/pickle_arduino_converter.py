@@ -114,7 +114,7 @@ parser.add_option("-i", "--infile", type = "string",
                   default = './events.p',
                   help = "pickled file of all events")
 parser.add_option("-o", "--outfile", type = "string",
-                  default = './events.I3R',
+                  default = './events/',
                   help = "text file of LED instructions")
 parser.add_option("-f", "--frames", type = "int", default = 32,
                   help = "number of frames in animation")
