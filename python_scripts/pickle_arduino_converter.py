@@ -125,7 +125,7 @@ outdir          = options.outdir
 nevents         = options.nevents
 frames          = options.frames
 
-outdir = infile[0:infile.find('.')-1] if outdir == "events" else outdir
+outdir = infile[0:infile.find('.')] if outdir == "events" else outdir
 outdir = outdir if outdir.startswith(('/','.','~')) else "./" + outdir
 outdir = outdir if outdir.endswith('/') else outdir + "/"
 
