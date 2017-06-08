@@ -105,7 +105,7 @@ def wav2RGB(wavelength):
 ##################################################################################
 ##### Parsing variables
 ##################################################################################
-usage  = "%prog [options] --infile <input pickled file> --outfile <output i3rgb file> --nevents <num of events> --frames <num of frames>"
+usage  = "%prog [options] --infile <input pickled file> --outdir <output I3R directory> --nevents <num of events> --frames <num of frames>"
 parser = OptionParser(usage = usage)
 
 parser.add_option("-n", "--nevents", type = "int", default = 0,
@@ -113,7 +113,7 @@ parser.add_option("-n", "--nevents", type = "int", default = 0,
 parser.add_option("-i", "--infile", type = "string",
                   default = './events.p',
                   help = "pickled file of all events")
-parser.add_option("-o", "--outfile", type = "string",
+parser.add_option("-o", "--outdir", type = "string",
                   default = './events/',
                   help = "text file of LED instructions")
 parser.add_option("-f", "--frames", type = "int", default = 32,
@@ -121,28 +121,30 @@ parser.add_option("-f", "--frames", type = "int", default = 32,
 
 (options, args) = parser.parse_args()
 infile          = options.infile
-outfile         = options.outfile
+outdir          = options.outdir
 nevents         = options.nevents
 frames          = options.frames
 
+outdir = "./" + outdir if not outdir.startswith('/') or not outdir.startswith('.') or not outdir.startswith('~')
+outdir = outdir + "/" if not outdir.endswith('/')
+
 print ('in_file: {0}'.format(infile))
-print ('out_file: {0}'.format(outfile))
+print ('out_dir: {0}'.format(outdir))
 print (' ')
 
 ##################################################################################
 ##### Define basic variables
 ##################################################################################
 all_events = cPickle.load(open(infile, 'rb'))
-dir_path   = os.path.dirname(os.path.realpath(__file__)) + outfile
 
-if not os.path.exists(os.path.dirname(dir_path)):
+if not os.path.exists(os.path.dirname(outdir)):
     try:
-        os.makedirs(os.path.dirname(dir_path))
+        os.makedirs(os.path.dirname(outdir))
     except OSError as exc: # Guard against race condition
         if exc.errno != errno.EEXIST:
             raise
 
-if nevents == 0: nevents = len(all_events)
+if nevents == 0: nevents = len(all_events['hits'])
 
 max_brightness = 100. ## set max brightness to avoid burning the LEDs
 nth = 0
@@ -151,16 +153,14 @@ nth = 0
 ##### Send events to text file: hit = [time, dom, string, charge]
 ##################################################################################
 
-for i, event in enumerate(all_events):
+for i, event in enumerate(all_events['hits']):
     if nth == nevents: break
 
-    print (all_events['id'][i])
-
-    output = open(dir_path + all_events['id'][i] + '.I3R', 'w')
+    output = open(outdir + all_events['id'][i] + '.I3R', 'w')
 
     output.write("q\n%s\n%s\n%s\n%s\n%s\n" % (all_events['date'][i], all_events['id'][i], all_events['energy'][i], all_events['zenith'][i], all_events['pid'][i]))
 
-    for item in eventToArray(all_events['hits'][i], max_brightness, frames):
+    for item in eventToArray(event, max_brightness, frames):
         output.write("%s\n" % item)
     output.write("x\n")
 
