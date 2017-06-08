@@ -114,7 +114,7 @@ parser.add_option("-i", "--infile", type = "string",
                   default = './events.p',
                   help = "pickled file of all events")
 parser.add_option("-o", "--outdir", type = "string",
-                  default = './events/',
+                  default = 'events',
                   help = "text file of LED instructions")
 parser.add_option("-f", "--frames", type = "int", default = 32,
                   help = "number of frames in animation")
@@ -125,6 +125,7 @@ outdir          = options.outdir
 nevents         = options.nevents
 frames          = options.frames
 
+outdir = infile[0:infile.find('.')-1] if outdir = 'events'
 outdir = outdir if outdir.startswith(('/','.','~')) else "./" + outdir
 outdir = outdir if outdir.endswith('/') else outdir + "/"
 
