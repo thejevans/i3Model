@@ -38,7 +38,7 @@ def eventToArray (event, maxBrightness, frames):
 
     eventArray = np.array([])
 
-    for i, pulse in enumerate(event['hits']):
+    for i, pulse in enumerate(event):
         [r, g, b] = wav2RGB(wavelength[i])
 
         r  *= brightness[i]
@@ -154,13 +154,13 @@ nth = 0
 for i, event in enumerate(all_events):
     if nth == nevents: break
 
-    print (event['id'])
+    print (all_events['id'][i])
 
-    output = open(dir_path + event['id'] + '.I3R', 'w')
+    output = open(dir_path + all_events['id'][i] + '.I3R', 'w')
 
-    output.write("q\n%s\n%s\n%s\n%s\n%s\n" % (event['date'], event['id'], event['energy'], event['zenith'], event['pid']))
+    output.write("q\n%s\n%s\n%s\n%s\n%s\n" % (all_events['date'][i], all_events['id'][i], all_events['energy'][i], all_events['zenith'][i], all_events['pid'][i]))
 
-    for item in eventToArray(event, max_brightness, frames):
+    for item in eventToArray(all_events['hits'][i], max_brightness, frames):
         output.write("%s\n" % item)
     output.write("x\n")
 
