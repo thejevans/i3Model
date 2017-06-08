@@ -38,6 +38,9 @@ Adafruit_FT6206 ts = Adafruit_FT6206();
 // Maximum number of characters per line in event files
 #define MAX_LINE_LENGTH 4
 
+// Maximum number of frames per event
+#define MAXFRAMES 1000
+
 // Set pin for SD card
 const byte chipSelect = 4;
 
@@ -532,7 +535,7 @@ void displayEvents (String filename) {
   int numLeds = 0;
   int ledList[NUMPIXELS];
   CRGB color[NUMPIXELS];
-  int frameIndicies[1000];
+  int frameIndicies[MAXFRAMES];
 
   memset(ledList, 0, sizeof(ledList));
   memset(color, CRGB(0,0,0), sizeof(color));
@@ -569,7 +572,7 @@ void displayEvents (String filename) {
   tft.print(filename);
   tft.setCursor(10, 10+8);
 
-  while (file.available()) {
+  while ((file.available()) && (frame < MAXFRAMES)) {
 
     // Check for pause
     if (stopCheck(-1)) { return; }
