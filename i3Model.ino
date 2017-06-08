@@ -36,10 +36,10 @@ Adafruit_FT6206 ts = Adafruit_FT6206();
 #define NUMPIXELS 4800
 
 // Maximum number of characters per line in event files
-#define MAX_LINE_LENGTH 4
+#define MAX_LINE_LENGTH 20
 
 // Maximum number of frames per event
-#define MAXFRAMES 1000
+#define MAXFRAMES 5000
 
 // Set pin for SD card
 const byte chipSelect = 4;
@@ -526,16 +526,18 @@ void displayEvents (String filename) {
   int frame = 0;
   char val[MAX_LINE_LENGTH];
   int led;
-  int r;
-  int g;
-  int b;
-  int pos = 0;
-  int i = 0;
+  byte r;
+  byte g;
+  byte b;
+  byte pos = 0;
+  byte i = 0;
   int prevLed;
   int numLeds = 0;
   int ledList[NUMPIXELS];
   CRGB color[NUMPIXELS];
   int frameIndicies[MAXFRAMES];
+  bool header = false;
+  byte headerIndex = 0;
 
   memset(ledList, 0, sizeof(ledList));
   memset(color, CRGB(0,0,0), sizeof(color));
@@ -568,7 +570,7 @@ void displayEvents (String filename) {
 
   playingEvent = true;
 
-  //Text display NEEDS UPDATING
+  //Text display
   tft.print(filename);
   tft.setCursor(10, 10+8);
 
@@ -582,7 +584,6 @@ void displayEvents (String filename) {
 
     // Reset array
     memset(val, '\0', sizeof(val));
-    
     char temp = '\0';
     while ((temp != '\n') && (temp >= 0)) { // Read entire line of file as a char array
       if ((i > 0)){
@@ -595,7 +596,57 @@ void displayEvents (String filename) {
       }
     }
 
-    if (val[0] == 'n') { // If the first index of val is equal to the end-frame escape character, mark end-frame position
+    if (header) {
+      switch (headerIndex) {
+        case 0:
+          tft.setCursor(10, 10+8*2);
+          tft.print("Date: ");
+          tft.print(val);
+          headerIndex++;
+          break;
+        case 1:
+          tft.setCursor(10, 10+8*3);
+          tft.print("ID: ");
+          tft.print(val);
+          headerIndex++;
+          break;
+        case 2:
+          tft.setCursor(10, 10+8*4);
+          tft.print("Energy: ");
+          tft.print(val);
+          tft.print(" TeV");
+          headerIndex++;
+          break;
+        case 3:
+          tft.setCursor(10, 10+8*5);
+          tft.print("Zenith: ");
+          tft.print(val);
+          tft.print(" degrees");
+          headerIndex++;
+          break;
+        case 4:
+          tft.setCursor(10, 10+8*6);
+          tft.print("PID: ");
+          if (val[0] == '1') {
+            tft.print("Track");
+          }
+          else if (val[0] == '0') {
+            tft.print("Cascade");
+          }
+          else {
+            tft.print("Undetermined");
+          }
+          headerIndex = 0;
+          header = false;
+          break;
+      }
+    }
+
+    else if (val[0] == 'q') {
+      header = true;
+    }
+
+    else if (val[0] == 'n') { // If the first index of val is equal to the end-frame escape character, mark end-frame position
       Serial.println("END OF FRAME");
       
       // Set index for end of current frame
@@ -677,10 +728,6 @@ void displayEvents (String filename) {
     eventOver = true;
   
     make_h_menu(0);
-    
-    // Print "Done!" at the end
-    tft.setCursor(10, 10+8+8+8);
-    tft.print("Done!");
     
     Serial.println("END OF EVENT");
     
