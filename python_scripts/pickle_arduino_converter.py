@@ -154,7 +154,7 @@ nth = 0
 for i, event in enumerate(all_events):
     if nth == nevents: break
 
-    output = open(dir_path + event['pid'] + ".I3R", 'w')
+    output = open(dir_path + event['pid'] + '.I3R', 'w')
 
     output.write("q\n%s\n%s\n%s\n%s\n%s\n" % (event['date'], event['id'], event['energy'], event['zenith'], event['pid']))
 
