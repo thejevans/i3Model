@@ -163,7 +163,6 @@ for i, event in enumerate(all_events['hits']):
 
     for item in eventToArray(event, max_brightness, frames):
         output.write("%s\n" % item)
-    output.write("x\n")
 
     nth += 1
 
