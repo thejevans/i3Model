@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 from __future__ import print_function
 ######################################################################################
+#### Author: Elim Cheung
+####
 #### This is a test script to make sure the mapping between arduino LED location and
 #### IceCube DOM / string number.
-#### 
+####
 #### python command:
 #### python top_to_bottom_scanner.py --outfile <output path/name pickled file>
 ######################################################################################
@@ -29,9 +31,9 @@ smap = { 1: [ 1,True] , 2: [2 ,False], 3: [3 ,True] , 4 :[4 ,False], 5 :[5 ,True
          22:[30,False], 23:[29,True] , 24:[28,False], 25:[27,True] , 26:[26,False], 27:[25,True] , 28:[24,False], 29:[23,True] , 30:[22,False] ,
          31:[31,True] , 32:[32,False], 33:[33,True] , 34:[34,False], 35:[35,True] , 36:[36,False], 37:[37,True] , 38:[38,False], 39:[39,True] , 40:[40,False],
          41:[50,False], 42:[49,True] , 43:[48,False], 44:[47,True] , 45:[46,False], 46:[45,True] , 47:[44,False], 48:[43,True] , 49:[42,False], 50:[41,True] ,
-         51:[51,True] , 52:[52,False], 53:[53,True] , 54:[54,False], 55:[55,True] , 56:[56,False], 57:[57,True] , 58:[58,False], 59:[59,True], 
+         51:[51,True] , 52:[52,False], 53:[53,True] , 54:[54,False], 55:[55,True] , 56:[56,False], 57:[57,True] , 58:[58,False], 59:[59,True],
          60:[67,True] , 61:[66,False], 62:[65,True] , 63:[64,False], 64:[63,True] , 65:[62,False], 66:[61,True] , 67:[60,False],
-         68:[68,False], 69:[69,True] , 70:[70,False], 71:[71,True] , 72:[72,False], 73:[73,True] , 74:[74,False], 
+         68:[68,False], 69:[69,True] , 70:[70,False], 71:[71,True] , 72:[72,False], 73:[73,True] , 74:[74,False],
          75:[80,False], 76:[79,True] , 77:[78,False], 78:[77,True] , 79:[76,False], 80:[75,True] }
 
 ##################################################################################

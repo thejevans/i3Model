@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 from __future__ import print_function
 ######################################################################################
+#### Authors: John Evans & Elim Cheung
+####
 #### python command:
 #### python i3_arduino_converter.py --nevents <num of events> --infile <input i3 files>
 ####                                --outdir <directory to contain I3R files of LED instructions>

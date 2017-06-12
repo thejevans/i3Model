@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 from __future__ import print_function
 ######################################################################################
+#### Author: John Evans
+####
 #### python command:
 #### python pickle_arduino_converter.py --infile <input pickled file>
 ####                                    --outdir <directory to contain I3R files of LED instructions>

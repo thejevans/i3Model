@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 from __future__ import print_function
 ######################################################################################
+#### Author: Elim Cheung
+####
 #### python command:
-#### python send_events_to_arduino.py --nevents <num of events to display> 
+#### python send_events_to_arduino.py --nevents <num of events to display>
 ####                                  --infile <input pickled files>
 ####                                  --port /dev/ttyACM0
 ####                                  --baud_rate 115200
@@ -99,7 +101,7 @@ for i, event in enumerate(all_events):
         ## send data to arduino
         data = str( (wavelength[j],thisevent[j][1],strings[j],brightness[j]) )
         send_data (data)
-        ## if this wavelength is different from next or if last pulse of this event; 
+        ## if this wavelength is different from next or if last pulse of this event;
         ## tell arduino to display
         if (j==len(thisevent)-1) or (not wavelength[j]==wavelength[j+1]):
             send_data( 'd' )
