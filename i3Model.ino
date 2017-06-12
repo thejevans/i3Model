@@ -73,6 +73,7 @@ bool playingEvent = false;
 bool replay = false;
 bool playNext = false;
 bool playPrev = false;
+bool playFolders = true;
 
 // Switch for pausing events or tests
 bool paused = false;
@@ -271,6 +272,15 @@ void loop () {
             makeFileMenu(2, false);
           }
         }
+        else if (p.x >= 5 && p.x <= 5 + BUTTON_SIZE_Y / 2 + 5) {
+          if (playFolders) {
+            playFolders = false;
+          }
+          else {
+            playFolders = true;
+          }
+          makeFileMenu(3, false);
+        }
       }
       else { // Checks to see if an event file is touched
         int xstart;
@@ -391,10 +401,47 @@ bool parseDir () {
   dir.close();
   entry.close();
 
-  hasEvents = parseDirText();
-  Serial.println("parsing folder.txt");
+  // If the directory has a folder.txt, parse it
+  if (hasFolderText) {
+    Serial.println("parsing folder.txt");
+    parseDirText();
+  }
 
-  return hasEvents;
+  Serial.print("hasEvents: ");
+  Serial.println(hasEvents);
+  
+  // If folder playing is turned on, play the first file in the folder
+  if ((playFolders) && (hasEvents) && (workingDir != "/")) {
+    makeHomeMenu(0);
+    play(2, fileNames[0]);
+    while ((playNext) || (playPrev)) { // If prev. or next selected, play that event
+      clearPixels();
+      paused = false;
+      
+      if (playNext){ // Play next event
+        playNext = false;
+        playPrev = false;
+        makeHomeMenu(4);
+        Serial.println("NEXT");
+        play(2, nextEventFile);
+      }
+      
+      else { // Play prev. event
+        playNext = false;
+        playPrev = false;
+        makeHomeMenu(3);
+        Serial.println("PREV");
+        play(2, prevEventFile);
+      }
+    }
+    clearPixels();
+    // Clear screen above buttons
+    tft.fillRect(0, 0, 240, 218, ILI9341_BLACK);
+    makeHomeMenu(0);
+    return true;
+  }
+  
+  return false;
 }
 
 //--------------------------------------------------------------------------------------
@@ -438,21 +485,23 @@ bool parseDirText () {
     }
 
     if (nextMap) { // If the previous line was a filename, this line is the map
-      if (String(val) != "\n") {
+      if (String(val) != "") {
         descriptiveFileNames[pos] = String(val);
         nextMap = false;
       }
     }
 
     else if (hasEventsProperty) { // If the previous line was the property for having events, this line is the value
-      hasEventsProperty = false;
-      if (String(val) == "true") {
-        hasEvents = true;
+      if (String(val) != "") {
+        hasEventsProperty = false;
+        if (String(val) == "true") {
+          hasEvents = true;
+        }
       }
     }
 
     else if (mapsProperty) { // If the previous line was the property for maps, all following lines are maps
-      if (String(val) != "\n") {
+      if (String(val) != "") {
         for (int j = 0; j < indexOfLastFile; j++) {
           if (String(val) == fileNames[j].substring(0,min(fileNames[j].length(), 6))) {
             pos = j;
@@ -688,7 +737,13 @@ void displayEvents (String filename) {
   }
 
   // Initial text display
-  tft.print(filename);
+  if (descriptiveFileNames[indexOfCurrentEvent] != "") {
+    tft.print(descriptiveFileNames[indexOfCurrentEvent]);
+  }
+  else {
+    tft.print(filename);
+  }
+  
   tft.setCursor(10, 10+8);
 
   while ((file.available()) && (timeBin < NUM_PIXELS)) {
@@ -830,6 +885,8 @@ void displayEvents (String filename) {
 
   // Display the event
   do {
+    clearPixels();
+    
     // Reset previous LED value
     prevLed = 0;
     
@@ -1072,6 +1129,7 @@ void makeFileMenu (int selection, bool changedDir) {
   switch (selection) {
     case 1: // Back button selected
       if (page >= 1) {
+        tft.drawRect(5, BUTTON_START_Y2, BUTTON_SIZE_Y / 2 + 5, BUTTON_SIZE_Y, ILI9341_BLACK);
         tft.drawRect(BUTTON_START_X, BUTTON_START_Y2, BUTTON_SIZE_Y * 2, BUTTON_SIZE_Y, ILI9341_WHITE);
         tft.drawRect(BUTTON_START_X2, BUTTON_START_Y2, BUTTON_SIZE_Y * 2, BUTTON_SIZE_Y, ILI9341_BLACK);
         makeFileMenu(0, changedDir);
@@ -1080,10 +1138,17 @@ void makeFileMenu (int selection, bool changedDir) {
 
     case 2: // Next button selected
       if (page <= lastPage) {
+        tft.drawRect(5, BUTTON_START_Y2, BUTTON_SIZE_Y / 2 + 5, BUTTON_SIZE_Y, ILI9341_BLACK);
         tft.drawRect(BUTTON_START_X, BUTTON_START_Y2, BUTTON_SIZE_Y * 2, BUTTON_SIZE_Y, ILI9341_BLACK);
         tft.drawRect(BUTTON_START_X2, BUTTON_START_Y2, BUTTON_SIZE_Y * 2, BUTTON_SIZE_Y, ILI9341_WHITE);
         makeFileMenu(0, changedDir);
       }
+      break;
+    case 3: // Play type button selected
+      tft.drawRect(5, BUTTON_START_Y2, BUTTON_SIZE_Y / 2 + 5, BUTTON_SIZE_Y, ILI9341_WHITE);
+      tft.drawRect(BUTTON_START_X, BUTTON_START_Y2, BUTTON_SIZE_Y * 2, BUTTON_SIZE_Y, ILI9341_BLACK);
+      tft.drawRect(BUTTON_START_X2, BUTTON_START_Y2, BUTTON_SIZE_Y * 2, BUTTON_SIZE_Y, ILI9341_BLACK);
+      makeFileMenu(0, changedDir);
       break;
 
     default:
@@ -1093,7 +1158,21 @@ void makeFileMenu (int selection, bool changedDir) {
       }
       
       tft.fillRect(0, 0, 240, 270, ILI9341_BLACK);
-      displayFiles(changedDir);
+
+      if ((displayFiles(changedDir))&& (playFolders)) { return; }
+
+      // Make play type button
+      tft.setCursor(10 + 3, BUTTON_START_Y2 + 13);
+      tft.setTextColor(ILI9341_BLACK);
+      tft.setTextSize(2);
+      if (playFolders) {
+        tft.fillRect(5, BUTTON_START_Y2, BUTTON_SIZE_Y / 2 + 5, BUTTON_SIZE_Y, ILI9341_BLUE);
+        tft.println("D");
+      }
+      else {
+        tft.fillRect(5, BUTTON_START_Y2, BUTTON_SIZE_Y / 2 + 5, BUTTON_SIZE_Y, ILI9341_GREEN);
+        tft.println("E");
+      }
 
       // Make back button
       tft.fillRect(BUTTON_START_X, BUTTON_START_Y2, BUTTON_SIZE_Y * 2, BUTTON_SIZE_Y, ILI9341_YELLOW);
@@ -1117,6 +1196,7 @@ void makeFileMenu (int selection, bool changedDir) {
       // Clear selection
       tft.drawRect(BUTTON_START_X, BUTTON_START_Y2, BUTTON_SIZE_Y * 2, BUTTON_SIZE_Y, ILI9341_BLACK);
       tft.drawRect(BUTTON_START_X2, BUTTON_START_Y2, BUTTON_SIZE_Y * 2, BUTTON_SIZE_Y, ILI9341_BLACK);
+      tft.drawRect(5, BUTTON_START_Y2, BUTTON_SIZE_Y / 2 + 5, BUTTON_SIZE_Y, ILI9341_BLACK);
       break;
   }
 }
@@ -1124,15 +1204,15 @@ void makeFileMenu (int selection, bool changedDir) {
 //--------------------------------------------------------------------------------------
 // Displays file and directory buttons: changedDir = True if the working directory has changed
 //--------------------------------------------------------------------------------------
-void displayFiles (bool changedDir) {
+bool displayFiles (bool changedDir) {
   // If the working directory has been changed, parse the new directory
   if (changedDir) {
     tft.setCursor(10, 10);
     tft.setTextColor(ILI9341_WHITE);
     tft.setTextSize(1);
     tft.println("Loading Files...");
-    
-    parseDir();
+
+    if ((parseDir()) && (playFolders)) { return true; }
     
     tft.fillRect(10, 10, 10+6*16, 10+8, ILI9341_BLACK);
   }
@@ -1219,6 +1299,8 @@ void displayFiles (bool changedDir) {
   tft.print("page ");
   tft.print(page);
   tft.setCursor(10, 10);
+  
+  return false;
 }
 
 //--------------------------------------------------------------------------------------
