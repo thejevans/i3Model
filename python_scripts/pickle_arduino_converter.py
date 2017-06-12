@@ -184,7 +184,7 @@ for i, event in enumerate(all_events['hits']):
 
     output.close()
 
-    j++
+    j += 1
 
     allText.write("%06d\n%s\n\n" % (i,all_events['id'][i]))
 
@@ -203,7 +203,7 @@ for i, event in enumerate(all_events['hits']):
 
         trackText.write("%06d\n%s\n\n" % (i,all_events['id'][i]))
         shutil.copy(outdir + 'all/' + "%06d" % i + '-' + all_events['id'][i] + '.I3R', outdir + 'tracks/')
-        k++
+        k += 1
 
     elif all_events['pid'][i] == 0:
         if firstCascade:
@@ -220,7 +220,7 @@ for i, event in enumerate(all_events['hits']):
 
         cascadeText.write("%06d\n%s\n\n" % (i,all_events['id'][i]))
         shutil.copy(outdir + 'all/' + "%06d" % i + '-' + all_events['id'][i] + '.I3R', outdir + 'cascades/')
-        l++
+        l += 1
 
     else:
         if firstUndetermined:
@@ -237,7 +237,7 @@ for i, event in enumerate(all_events['hits']):
 
         undeterminedText.write("%06d\n%s\n\n" % (i,all_events['id'][i]))
         shutil.copy(outdir + 'all/' + "%06d" % i + '-' + all_events['id'][i] + '.I3R', outdir + 'undetermined/')
-        m++
+        m += 1
 
 if not firstUndetermined:
     undeterminedText.close()
