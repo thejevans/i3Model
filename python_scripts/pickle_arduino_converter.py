@@ -125,15 +125,7 @@ outdir = infile[0:infile.find('.')] if outdir == "events" else outdir
 outdir = outdir if outdir.startswith(('/','.','~')) else "./" + outdir
 outdir = outdir if outdir.endswith('/') else outdir + "/"
 
-print ('in_file: {0}'.format(infile))
-print ('out_dir: {0}'.format(outdir))
-print (' ')
-
-##################################################################################
-##### Define basic variables
-##################################################################################
-all_events = cPickle.load(open(infile, 'rb'))
-
+## make outdir
 if not os.path.exists(os.path.dirname(outdir)):
     try:
         os.makedirs(os.path.dirname(outdir))
@@ -141,18 +133,42 @@ if not os.path.exists(os.path.dirname(outdir)):
         if exc.errno != errno.EEXIST:
             raise
 
+print (' ')
+print ('in_file: {0}'.format(infile))
+print ('out_dir: {0}'.format(outdir))
+print (' ')
+
+##################################################################################
+##### Define basic variables
+##################################################################################
+
+all_events = cPickle.load(open(infile, 'rb')) ## load pickled file
+
 max_brightness = 100. ## set max brightness to avoid burning the LEDs
 
+## flags for initial operations for PID folders
+firstTrack = True
+firstCascade = True
+firstUndetermined = True
+
+## counters for print at the end
+j = 0
+k = 0
+l = 0
+m = 0
+
 ##################################################################################
-##### Send events to text file: hit = [time, dom, string, charge]
+##### Send events to I3R files and create folder.txt files
 ##################################################################################
 
+## make main folder.txt
 text = open(outdir + 'folder.txt', 'w')
 
 text.write("contains events:\nfalse\n\nmaps:\nALL\nAll\n\nTRACKS\nTracks\n\nCASCAD" + "\nCascades\n\nUNDETE\nUndetermined")
 
 text.close()
 
+## make all subdirectory
 if not os.path.exists(os.path.dirname(outdir + 'all/')):
     try:
         os.makedirs(os.path.dirname(outdir + 'all/'))
@@ -160,21 +176,13 @@ if not os.path.exists(os.path.dirname(outdir + 'all/')):
         if exc.errno != errno.EEXIST:
             raise
 
-firstTrack = True
-firstCascade = True
-firstUndetermined = True
-
-j = 0
-k = 0
-l = 0
-m = 0
-
+## start all folder.txt
 allText = open(outdir + 'all/folder.txt', 'w')
 allText.write("contains events:\ntrue\n\nmaps:\n")
 
 for i, event in enumerate(all_events['hits']):
 
-
+    ## make I3R file
     output = open(outdir + 'all/' + "%06d" % i + '-' + all_events['id'][i] + '.I3R', 'w')
 
     output.write("q\n%s\n%s\n%s\n%s\n%s\n" % (all_events['date'][i], all_events['id'][i], all_events['energy'][i], all_events['zenith'][i], all_events['pid'][i]))
@@ -186,8 +194,10 @@ for i, event in enumerate(all_events['hits']):
 
     j += 1
 
+    ## add to all folder.txt
     allText.write("%06d\n%s\n\n" % (i,all_events['id'][i]))
 
+    ## if track, copy I3R file and add to tracks folder.txt
     if all_events['pid'][i] == 1:
         if firstTrack:
             if not os.path.exists(os.path.dirname(outdir + 'tracks/')):
@@ -205,6 +215,7 @@ for i, event in enumerate(all_events['hits']):
         shutil.copy(outdir + 'all/' + "%06d" % i + '-' + all_events['id'][i] + '.I3R', outdir + 'tracks/')
         k += 1
 
+    ## if cascade, copy I3R file and add to cascades folder.txt
     elif all_events['pid'][i] == 0:
         if firstCascade:
             if not os.path.exists(os.path.dirname(outdir + 'cascades/')):
@@ -222,6 +233,7 @@ for i, event in enumerate(all_events['hits']):
         shutil.copy(outdir + 'all/' + "%06d" % i + '-' + all_events['id'][i] + '.I3R', outdir + 'cascades/')
         l += 1
 
+    ## if undetermined, copy I3R file and add to undetermined folder.txt
     else:
         if firstUndetermined:
             if not os.path.exists(os.path.dirname(outdir + 'undetermined/')):
@@ -239,6 +251,7 @@ for i, event in enumerate(all_events['hits']):
         shutil.copy(outdir + 'all/' + "%06d" % i + '-' + all_events['id'][i] + '.I3R', outdir + 'undetermined/')
         m += 1
 
+## close opened folder.txt files
 if not firstUndetermined:
     undeterminedText.close()
 if not firstTrack:
@@ -246,6 +259,7 @@ if not firstTrack:
 if not firstCascade:
     cascadeText.close()
 
+## print totals
 print ('Total Events: {0}'.format(j))
 print ('Tracks: {0}'.format(k))
 print ('Cascades: {0}'.format(l))
