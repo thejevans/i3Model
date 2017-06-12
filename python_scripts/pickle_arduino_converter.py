@@ -170,7 +170,7 @@ allText.write("contains events:\ntrue\n\nmaps:\n")
 for i, event in enumerate(all_events['hits']):
 
 
-    output = open(outdir + 'all/' + "%06d" % i + all_events['id'][i] + '.I3R', 'w')
+    output = open(outdir + 'all/' + "%06d" % i + '-' + all_events['id'][i] + '.I3R', 'w')
 
     output.write("q\n%s\n%s\n%s\n%s\n%s\n" % (all_events['date'][i], all_events['id'][i], all_events['energy'][i], all_events['zenith'][i], all_events['pid'][i]))
 
@@ -195,7 +195,7 @@ for i, event in enumerate(all_events['hits']):
             firstTrack = False
 
         trackText.write("%06d\n%s\n\n" % (i,all_events['id'][i]))
-        shutil.copy(outdir + 'all/' + "%06d" % i + all_events['id'][i] + '.I3R', outdir + 'tracks/')
+        shutil.copy(outdir + 'all/' + "%06d" % i + '-' + all_events['id'][i] + '.I3R', outdir + 'tracks/')
 
     elif all_events['pid'][i] == 0:
         if firstCascade:
@@ -211,7 +211,7 @@ for i, event in enumerate(all_events['hits']):
             firstCascade = False
 
         cascadeText.write("%06d\n%s\n\n" % (i,all_events['id'][i]))
-        shutil.copy(outdir + 'all/' + "%06d" % i + all_events['id'][i] + '.I3R', outdir + 'cascades/')
+        shutil.copy(outdir + 'all/' + "%06d" % i + '-' + all_events['id'][i] + '.I3R', outdir + 'cascades/')
 
     else:
         if firstUndetermined:
@@ -227,7 +227,7 @@ for i, event in enumerate(all_events['hits']):
             firstUndetermined = False
 
         undeterminedText.write("%06d\n%s\n\n" % (i,all_events['id'][i]))
-        shutil.copy(outdir + 'all/' + "%06d" % i + all_events['id'][i] + '.I3R', outdir + 'undetermined/')
+        shutil.copy(outdir + 'all/' + "%06d" % i + '-' + all_events['id'][i] + '.I3R', outdir + 'undetermined/')
 
 if not firstUndetermined:
     undeterminedText.close()
