@@ -197,7 +197,7 @@ for i, event in enumerate(all_events['hits']):
         trackText.write("%06d\n%s\n\n" % (i,all_events['id'][i]))
         shutil.copy(outdir + 'all/' + all_events['id'][i] + '.I3R', outdir + 'tracks/')
 
-    else if all_events['pid'][i] == 0:
+    elif all_events['pid'][i] == 0:
         if firstCascade:
             if not os.path.exists(os.path.dirname(outdir + 'cascades/')):
                 try:
