@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 from __future__ import print_function
 ######################################################################################
+#### Author: Elim Cheung
+####
 #### python command:
-#### python i3_pickle_converter.py --nevents <num of events> --infile <input i3 files> 
+#### python i3_pickle_converter.py --nevents <num of events> --infile <input i3 files>
 ####                               --outfile <output path/name pickled file>
 ####                               (--verbose --hese)
 ######################################################################################
@@ -32,9 +34,9 @@ smap = { 1:  1, 2: 2 , 3: 3 , 4 :4 , 5 :5 , 6 :6 ,
          22:30, 23:29, 24:28, 25:27, 26:26, 27:25, 28:24, 29:23, 30:22,
          31:31, 32:32, 33:33, 34:34, 35:35, 36:36, 37:37, 38:38, 39:39, 40:40,
          41:50, 42:49, 43:48, 44:47, 45:46, 46:45, 47:44, 48:43, 49:42, 50:41,
-         51:51, 52:52, 53:53, 54:54, 55:55, 56:56, 57:57, 58:58, 59:59, 
+         51:51, 52:52, 53:53, 54:54, 55:55, 56:56, 57:57, 58:58, 59:59,
          60:67, 61:66, 62:65, 63:64, 64:63, 65:62, 66:61, 67:60,
-         68:68, 69:69, 70:70, 71:71, 72:72, 73:73, 74:74, 
+         68:68, 69:69, 70:70, 71:71, 72:72, 73:73, 74:74,
          75:80, 76:79, 77:78, 78:77, 79:76, 80:75 }
 
 hesedir = '/data/i3store0/users/elims/HESE/'
@@ -64,15 +66,15 @@ def get_hits (pulsemap):
     return np.array(sorted(hits))
 
 def get_event_info (frame, header):
-    
-    ## header related 
+
+    ## header related
     date = str(header.start_time.utc_year)+'/'+str(header.start_time.utc_month.numerator)+'/'+str(header.start_time.utc_day_of_month)
-    ID = str(header.run_id)+'_'+str(header.event_id)+'_'+str(header.sub_event_id)    
+    ID = str(header.run_id)+'_'+str(header.event_id)+'_'+str(header.sub_event_id)
 
     ## reco related
     particle = frame[reco_particle]
     energy = round (particle.energy / 1000., 2) ## in TeV
-    zenith = round (particle.dir.zenith*180./np.pi, 2) ## in degree    
+    zenith = round (particle.dir.zenith*180./np.pi, 2) ## in degree
 
     ## hits related
     hits = get_hits (frame['SplitInIcePulses'].apply(frame))
@@ -93,12 +95,12 @@ parser.add_option("-n", "--nevents", type="int", default=0,
                   help="number of events to write to pickled dictionary")
 parser.add_option("-v", "--verbose", action="store_true", default=False,
                   help="print info if True")
-parser.add_option("-i", "--indir", type="string", 
+parser.add_option("-i", "--indir", type="string",
                   default='/data/i3store0/users/elims/event_display/',
                   help="directory with i3Files from real events")
-parser.add_option("-a", "--infile", type="string", 
+parser.add_option("-a", "--infile", type="string",
                   default=None, help="i3File from real events")
-parser.add_option("-o", "--outfile", type="string", 
+parser.add_option("-o", "--outfile", type="string",
                   default='/data/i3home/elims/display3D/event_files/test.p',
                   help="pickled output path")
 parser.add_option("-s", "--hese", action="store_true", default=False,
@@ -124,9 +126,9 @@ runs = []
 for f in infile:
     if verbose: print ('{0}'.format(f))
 
-    #### for hese events, 1 f = 1 data event; 
+    #### for hese events, 1 f = 1 data event;
     #### need to find the best fit event from each f
-    minllh = np.inf 
+    minllh = np.inf
 
     #### open f and loop
     d = dataio.I3File(f)

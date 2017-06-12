@@ -53,12 +53,14 @@ Adafruit_FT6206 ts = Adafruit_FT6206();
 
 // Global variables for file management
 String fileNames[255];
+String descriptiveFileNames[255];
 String workingDir = "/";
 byte page = 1;
 byte indexOfLastFile;
 byte lastPage;
 byte fileType[255];
 byte filesOnScreen;
+bool containsEvents = false;
 
 // Global variables for event management
 String prevEventFile;
@@ -200,6 +202,7 @@ void loop () {
           }
           makeHomeMenu(1); // Else file button selected
           page = 0; // page = 0 to clear screen
+          workingDir = "/";
           makeFileMenu(0, true); // Switch to file menu
         }
         else if (p.x >= BUTTON_START_X2 && p.x <= BUTTON_START_X2 + BUTTON_SIZE_Y * 2) {
@@ -328,8 +331,8 @@ void loop () {
 //--------------------------------------------------------------------------------------
 // Parse directory
 //--------------------------------------------------------------------------------------
-void parseDir (String path) {
-  File dir = SD.open(path);
+bool parseDir () {
+  File dir = SD.open(workingDir);
   
   // Returns to the beginning of the working directory
   dir.rewindDirectory();
@@ -337,16 +340,25 @@ void parseDir (String path) {
   File entry = dir.openNextFile();
   int i = 0;
   String k = "";
+  bool hasEvents = false;
+  bool hasFolderText = false;
 
   indexOfLastFile = 0;
   lastPage = 0;
   totalEventsInWorkingDir = -1;
+
+  for (int j = 0; j < 255; j++) {
+    descriptiveFileNames[j] = "";
+  }
   
   while (entry) { // While there is a next file in the directory, check for file type
     fileNames[i] = "";
     k = entry.name();
-    if (!k.startsWith("_")) { // All files that start with underlines are hidden or "deleted"
-      if (entry.isDirectory()) { // If entry is a directory, flag it as such
+    if ((!k.startsWith("_")) && (k != "TRASHE~1") && (k != "SPOTLI~1") && (k != "FSEVEN~1") && (k != "TEMPOR~1")) { // All files that start with underlines are hidden or "deleted"
+      if (k == "FOLDER.TXT") { // If entry is a folder.txt file, parse the file
+        hasFolderText = true;
+      }
+      else if (entry.isDirectory()) { // If entry is a directory, flag it as such
         fileType[i] = 1;
         fileNames[i] = k;
         i++;
@@ -360,6 +372,7 @@ void parseDir (String path) {
         indexOfLastFile++;
         totalEventsInWorkingDir++;
         Serial.println(k);
+        hasEvents = true;
       }
     }
 
@@ -377,6 +390,91 @@ void parseDir (String path) {
   // Close the file and directory
   dir.close();
   entry.close();
+
+  hasEvents = parseDirText();
+  Serial.println("parsing folder.txt");
+
+  return hasEvents;
+}
+
+//--------------------------------------------------------------------------------------
+// Parse folder.txt
+//--------------------------------------------------------------------------------------
+bool parseDirText () {
+  bool hasEvents = false;
+  bool hasEventsProperty = false;
+  bool mapsProperty = false;
+  bool nextMap = false;
+  
+  byte i = 0;
+  
+  char temp = '\0';
+  char val[255];
+  
+  int pos = 0;
+
+  File file = SD.open(workingDir + "FOLDER.TXT"); // Open folder.txt in working directory
+  
+  while (file.available()) {
+    
+    // Reset variables
+    i = 0;
+    temp = '\0';
+
+    // Reset array
+    memset(val, '\0', sizeof(val));
+    while ((temp != '\n') && (temp >= 0)) { // Read entire line of file as a char array, ignoring spaces
+      if ((i > 0)){
+        val[i - 1] = temp;
+      }
+      if (!file.available()) {
+        break;
+      }
+      temp = file.read();
+      i++;
+      if (temp == ' ') {
+        i--;
+      }
+    }
+
+    if (nextMap) { // If the previous line was a filename, this line is the map
+      if (String(val) != "\n") {
+        descriptiveFileNames[pos] = String(val);
+        nextMap = false;
+      }
+    }
+
+    else if (hasEventsProperty) { // If the previous line was the property for having events, this line is the value
+      hasEventsProperty = false;
+      if (String(val) == "true") {
+        hasEvents = true;
+      }
+    }
+
+    else if (mapsProperty) { // If the previous line was the property for maps, all following lines are maps
+      if (String(val) != "\n") {
+        for (int j = 0; j < indexOfLastFile; j++) {
+          if (String(val) == fileNames[j].substring(0,min(fileNames[j].length(), 6))) {
+            pos = j;
+            nextMap = true;
+            break;
+          }
+        }
+      }
+    }
+
+    else if (String(val) == "contains events:") { // Is this line the contains events: property?
+      hasEventsProperty = true;
+    }
+
+    else if (String(val) == "maps:") { // Is this line the maps: property?
+      mapsProperty = true;
+    }
+  }
+
+  // Close the event file
+  file.close();
+  return hasEvents;
 }
 
 //--------------------------------------------------------------------------------------
@@ -608,6 +706,9 @@ void displayEvents (String filename) {
     while ((temp != '\n') && (temp >= 0)) { // Read entire line of file as a char array, ignoring spaces
       if ((i > 0)){
         val[i - 1] = temp;
+      }
+      if (!file.available()) {
+        break;
       }
       temp = file.read();
       i++;
@@ -901,7 +1002,13 @@ void makeHomeMenu (int selection) {
             tft.println("PREV");
             tft.setCursor(BUTTON_START_X + 4, BUTTON_START_Y + 24);
             tft.setTextSize(1);
-            tft.println(prevEventFile);
+            if (descriptiveFileNames[indexOfCurrentEvent-1] != "") {
+              tft.setCursor(BUTTON_START_X + 2, BUTTON_START_Y + 24);
+              tft.println(descriptiveFileNames[indexOfCurrentEvent-1].substring(0,min(13,descriptiveFileNames[indexOfCurrentEvent-1].length())));
+            }
+            else {
+              tft.println(prevEventFile);
+            }
             tft.setTextSize(2);
           }
           
@@ -912,7 +1019,15 @@ void makeHomeMenu (int selection) {
             tft.println("NEXT");
             tft.setCursor(BUTTON_START_X2 + 4, BUTTON_START_Y + 24);
             tft.setTextSize(1);
-            tft.println(nextEventFile);
+
+            // If the file has a descriptive file name, display that instead
+            if (descriptiveFileNames[indexOfCurrentEvent+1] != "") {
+              tft.setCursor(BUTTON_START_X2 + 2, BUTTON_START_Y + 24);
+              tft.println(descriptiveFileNames[indexOfCurrentEvent+1].substring(0,min(13,descriptiveFileNames[indexOfCurrentEvent+1].length())));
+            }
+            else {
+              tft.println(nextEventFile);
+            }
             tft.setTextSize(2);
           }
         }
@@ -1017,7 +1132,7 @@ void displayFiles (bool changedDir) {
     tft.setTextSize(1);
     tft.println("Loading Files...");
     
-    parseDir(workingDir);
+    parseDir();
     
     tft.fillRect(10, 10, 10+6*16, 10+8, ILI9341_BLACK);
   }
@@ -1054,11 +1169,44 @@ void displayFiles (bool changedDir) {
         break;
     }
 
-    // Print the filename on the button
+    // Print the filename or descriptive file name on the button
     tft.setCursor(xstart + 1, ystart + 13);
     tft.setTextColor(ILI9341_BLACK);
     tft.setTextSize(2);
-    tft.println(filename);
+    
+    // This formatting can handle descriptive file names up to 45 characters long, anything more will be trimmed.
+    if (descriptiveFileNames[i] != "") {
+      filename = descriptiveFileNames[i];
+      if (filename.length() > 8) {
+        tft.setTextSize(1);
+        if (filename.length() > 15) {
+          if (filename.length() > 30) {
+            tft.setCursor(xstart + 3, ystart + 7);
+            tft.println(filename.substring(0,15));
+            tft.setCursor(xstart + 3, ystart + 16);
+            tft.println(filename.substring(15,30));
+            tft.setCursor(xstart + 3, ystart + 25);
+            tft.println(filename.substring(30,filename.length()));
+          }
+          else {
+            tft.setCursor(xstart + 3, ystart + 12);
+            tft.println(filename.substring(0,15));
+            tft.setCursor(xstart + 3, ystart + 21);
+            tft.println(filename.substring(15,min(filename.length(), 45)));
+          }
+        }
+        else {
+          tft.setCursor(xstart + 3, ystart + 16);
+          tft.println(filename);
+        }
+      }
+      else {
+        tft.println(filename);
+      }
+    }
+    else {
+      tft.println(filename);
+    }
 
     // Count file buttons on the screen
     filesOnScreen++;

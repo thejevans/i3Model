@@ -1,16 +1,18 @@
 #!/usr/bin/env python
 from __future__ import print_function
 ######################################################################################
+#### Author: John Evans
+####
 #### python command:
-#### python pickle_arduino_converter.py --nevents <num of events to display>
-####                                    --infile <input pickled files>
-####                                    --outfile <output i3rgb file>
-####                                    --frames <number of frames in animation>
+#### python pickle_arduino_converter.py --infile <input pickled file>
+####                                    --outdir <directory to contain I3R files of LED instructions>
+####                                    --bins <number of time bins in animation>
 ######################################################################################
 
 from optparse import OptionParser
 import os
 from os.path import expandvars
+import shutil
 import cPickle
 import numpy as np
 
@@ -18,7 +20,6 @@ import numpy as np
 ##### Converts from DOM/String format to LED value
 ##################################################################################
 def flatten (dom, string):
-    #string = string % 2 + 1
     if string % 2 == 1:
         led = 60 * string - dom
     else:
@@ -29,12 +30,12 @@ def flatten (dom, string):
 ##################################################################################
 ##### Converts event to Array
 ##################################################################################
-def eventToArray (event, maxBrightness, frames):
+def eventToArray (event, maxBrightness, totalBins):
     max_charge = np.sqrt(max(event.T[3]))
     brightness = (np.sqrt(event.T[3]) * maxBrightness / max_charge).astype(int)
 
-    tbin       = np.arange(len(event.T[0])) / int(round(len(event.T[0]) / frames))
-    wavelength = (700. - 300. * tbin / frames).astype(int)
+    tbin       = np.arange(len(event.T[0])) / int(round(len(event.T[0]) / totalBins))
+    wavelength = (700. - 300. * tbin / totalBins).astype(int)
 
     eventArray = np.array([])
 
@@ -105,39 +106,28 @@ def wav2RGB(wavelength):
 ##################################################################################
 ##### Parsing variables
 ##################################################################################
-usage  = "%prog [options] --infile <input pickled file> --outdir <output I3R directory> --nevents <num of events> --frames <num of frames>"
+usage  = "%prog [options] --infile <input pickled file> --outdir <output I3R directory> --bins <num of time bins>"
 parser = OptionParser(usage = usage)
 
-parser.add_option("-n", "--nevents", type = "int", default = 0,
-                  help = "number of events to send to arduino/display")
 parser.add_option("-i", "--infile", type = "string",
                   default = './events.p',
                   help = "pickled file of all events")
 parser.add_option("-o", "--outdir", type = "string",
                   default = 'events',
-                  help = "text file of LED instructions")
-parser.add_option("-f", "--frames", type = "int", default = 32,
-                  help = "number of frames in animation")
+                  help = "directory to contain I3R files of LED instructions")
+parser.add_option("-b", "--bins", type = "int", default = 32,
+                  help = "number of time bins in animation")
 
 (options, args) = parser.parse_args()
 infile          = options.infile
 outdir          = options.outdir
-nevents         = options.nevents
-frames          = options.frames
+bins            = options.bins
 
 outdir = infile[0:infile.find('.')] if outdir == "events" else outdir
 outdir = outdir if outdir.startswith(('/','.','~')) else "./" + outdir
 outdir = outdir if outdir.endswith('/') else outdir + "/"
 
-print ('in_file: {0}'.format(infile))
-print ('out_dir: {0}'.format(outdir))
-print (' ')
-
-##################################################################################
-##### Define basic variables
-##################################################################################
-all_events = cPickle.load(open(infile, 'rb'))
-
+## make outdir
 if not os.path.exists(os.path.dirname(outdir)):
     try:
         os.makedirs(os.path.dirname(outdir))
@@ -145,25 +135,138 @@ if not os.path.exists(os.path.dirname(outdir)):
         if exc.errno != errno.EEXIST:
             raise
 
-if nevents == 0: nevents = len(all_events['hits'])
+print (' ')
+print ('in_file: {0}'.format(infile))
+print ('out_dir: {0}'.format(outdir))
+print (' ')
+
+##################################################################################
+##### Define basic variables
+##################################################################################
+
+all_events = cPickle.load(open(infile, 'rb')) ## load pickled file
 
 max_brightness = 100. ## set max brightness to avoid burning the LEDs
-nth = 0
+
+## flags for initial operations for PID folders
+firstTrack = True
+firstCascade = True
+firstUndetermined = True
+
+## counters for print at the end
+j = 0
+k = 0
+l = 0
+m = 0
 
 ##################################################################################
-##### Send events to text file: hit = [time, dom, string, charge]
+##### Send events to I3R files and create folder.txt files
 ##################################################################################
+
+## make main folder.txt
+text = open(outdir + 'folder.txt', 'w')
+
+text.write("contains events:\nfalse\n\nmaps:\nALL\nAll\n\n")
+
+## make all subdirectory
+if not os.path.exists(os.path.dirname(outdir + 'all/')):
+    try:
+        os.makedirs(os.path.dirname(outdir + 'all/'))
+    except OSError as exc: # Guard against race condition
+        if exc.errno != errno.EEXIST:
+            raise
+
+## start all folder.txt
+allText = open(outdir + 'all/folder.txt', 'w')
+allText.write("contains events:\ntrue\n\nmaps:\n")
 
 for i, event in enumerate(all_events['hits']):
-    if nth == nevents: break
 
-    output = open(outdir + all_events['id'][i] + '.I3R', 'w')
+    ## make I3R file
+    output = open(outdir + 'all/' + "%06d" % i + '-' + all_events['id'][i] + '.I3R', 'w')
 
     output.write("q\n%s\n%s\n%s\n%s\n%s\n" % (all_events['date'][i], all_events['id'][i], all_events['energy'][i], all_events['zenith'][i], all_events['pid'][i]))
 
-    for item in eventToArray(event, max_brightness, frames):
+    for item in eventToArray(event, max_brightness, bins):
         output.write("%s\n" % item)
 
-    nth += 1
-
     output.close()
+
+    j += 1
+
+    ## add to all folder.txt
+    allText.write("%06d\n%s\n\n" % (i,all_events['id'][i]))
+
+    ## if track, copy I3R file and add to tracks folder.txt
+    if all_events['pid'][i] == 1:
+        if firstTrack:
+            text.write("TRACKS\nTracks\n\n")
+            if not os.path.exists(os.path.dirname(outdir + 'tracks/')):
+                try:
+                    os.makedirs(os.path.dirname(outdir + 'tracks/'))
+                except OSError as exc: # Guard against race condition
+                    if exc.errno != errno.EEXIST:
+                        raise
+
+            trackText = open(outdir + 'tracks/folder.txt', 'w')
+            trackText.write("contains events:\ntrue\n\nmaps:\n")
+            firstTrack = False
+
+        trackText.write("%06d\n%s\n\n" % (i,all_events['id'][i]))
+        shutil.copy(outdir + 'all/' + "%06d" % i + '-' + all_events['id'][i] + '.I3R', outdir + 'tracks/')
+        k += 1
+
+    ## if cascade, copy I3R file and add to cascades folder.txt
+    elif all_events['pid'][i] == 0:
+        if firstCascade:
+            text.write("CASCAD\nCascades\n\n")
+            if not os.path.exists(os.path.dirname(outdir + 'cascades/')):
+                try:
+                    os.makedirs(os.path.dirname(outdir + 'cascades/'))
+                except OSError as exc: # Guard against race condition
+                    if exc.errno != errno.EEXIST:
+                        raise
+
+            cascadeText = open(outdir + 'cascades/folder.txt', 'w')
+            cascadeText.write("contains events:\ntrue\n\nmaps:\n")
+            firstCascade = False
+
+        cascadeText.write("%06d\n%s\n\n" % (i,all_events['id'][i]))
+        shutil.copy(outdir + 'all/' + "%06d" % i + '-' + all_events['id'][i] + '.I3R', outdir + 'cascades/')
+        l += 1
+
+    ## if undetermined, copy I3R file and add to undetermined folder.txt
+    else:
+        if firstUndetermined:
+            text.write("UNDETE\nUndetermined\n\n")
+            if not os.path.exists(os.path.dirname(outdir + 'undetermined/')):
+                try:
+                    os.makedirs(os.path.dirname(outdir + 'undetermined/'))
+                except OSError as exc: # Guard against race condition
+                    if exc.errno != errno.EEXIST:
+                        raise
+
+            undeterminedText = open(outdir + 'undetermined/folder.txt', 'w')
+            undeterminedText.write("contains events:\ntrue\n\nmaps:\n")
+            firstUndetermined = False
+
+        undeterminedText.write("%06d\n%s\n\n" % (i,all_events['id'][i]))
+        shutil.copy(outdir + 'all/' + "%06d" % i + '-' + all_events['id'][i] + '.I3R', outdir + 'undetermined/')
+        m += 1
+
+## close opened folder.txt files
+if not firstUndetermined:
+    undeterminedText.close()
+if not firstTrack:
+    trackText.close()
+if not firstCascade:
+    cascadeText.close()
+
+text.close()
+
+## print totals
+print ('Total Events: {0}'.format(j))
+print ('Tracks: {0}'.format(k))
+print ('Cascades: {0}'.format(l))
+print ('Undetermined: {0}'.format(m))
+print (' ')
