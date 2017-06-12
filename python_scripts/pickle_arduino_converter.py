@@ -164,6 +164,11 @@ firstTrack = True
 firstCascade = True
 firstUndetermined = True
 
+j = 0
+k = 0
+l = 0
+m = 0
+
 allText = open(outdir + 'all/folder.txt', 'w')
 allText.write("contains events:\ntrue\n\nmaps:\n")
 
@@ -178,6 +183,8 @@ for i, event in enumerate(all_events['hits']):
         output.write("%s\n" % item)
 
     output.close()
+
+    j++
 
     allText.write("%06d\n%s\n\n" % (i,all_events['id'][i]))
 
@@ -196,6 +203,7 @@ for i, event in enumerate(all_events['hits']):
 
         trackText.write("%06d\n%s\n\n" % (i,all_events['id'][i]))
         shutil.copy(outdir + 'all/' + "%06d" % i + '-' + all_events['id'][i] + '.I3R', outdir + 'tracks/')
+        k++
 
     elif all_events['pid'][i] == 0:
         if firstCascade:
@@ -212,6 +220,7 @@ for i, event in enumerate(all_events['hits']):
 
         cascadeText.write("%06d\n%s\n\n" % (i,all_events['id'][i]))
         shutil.copy(outdir + 'all/' + "%06d" % i + '-' + all_events['id'][i] + '.I3R', outdir + 'cascades/')
+        l++
 
     else:
         if firstUndetermined:
@@ -228,6 +237,7 @@ for i, event in enumerate(all_events['hits']):
 
         undeterminedText.write("%06d\n%s\n\n" % (i,all_events['id'][i]))
         shutil.copy(outdir + 'all/' + "%06d" % i + '-' + all_events['id'][i] + '.I3R', outdir + 'undetermined/')
+        m++
 
 if not firstUndetermined:
     undeterminedText.close()
@@ -235,3 +245,9 @@ if not firstTrack:
     trackText.close()
 if not firstCascade:
     cascadeText.close()
+
+print ('Total Events: {0}'.format(j))
+print ('Tracks: {0}'.format(k))
+print ('Cascades: {0}'.format(l))
+print ('Undetermined: {0}'.format(m))
+print (' ')
