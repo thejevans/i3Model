@@ -32,7 +32,7 @@ def eventToArray (event, maxBrightness, totalBins):
     max_charge = np.sqrt(max(event.T[3]))
     brightness = (np.sqrt(event.T[3]) * maxBrightness / max_charge).astype(int)
 
-    tbin       = np.arange(len(event.T[0])) / int(round(len(event.T[0]) / frames))
+    tbin       = np.arange(len(event.T[0])) / int(round(len(event.T[0]) / totalBins))
     wavelength = (700. - 300. * tbin / totalBins).astype(int)
 
     eventArray = np.array([])
@@ -174,7 +174,7 @@ for i, event in enumerate(all_events['hits']):
 
     output.write("q\n%s\n%s\n%s\n%s\n%s\n" % (all_events['date'][i], all_events['id'][i], all_events['energy'][i], all_events['zenith'][i], all_events['pid'][i]))
 
-    for item in eventToArray(event, max_brightness, frames):
+    for item in eventToArray(event, max_brightness, bins):
         output.write("%s\n" % item)
 
     output.close()
