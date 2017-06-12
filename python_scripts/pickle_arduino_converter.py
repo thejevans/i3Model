@@ -166,9 +166,7 @@ m = 0
 ## make main folder.txt
 text = open(outdir + 'folder.txt', 'w')
 
-text.write("contains events:\nfalse\n\nmaps:\nALL\nAll\n\nTRACKS\nTracks\n\nCASCAD" + "\nCascades\n\nUNDETE\nUndetermined")
-
-text.close()
+text.write("contains events:\nfalse\n\nmaps:\nALL\nAll\n\n")
 
 ## make all subdirectory
 if not os.path.exists(os.path.dirname(outdir + 'all/')):
@@ -202,6 +200,7 @@ for i, event in enumerate(all_events['hits']):
     ## if track, copy I3R file and add to tracks folder.txt
     if all_events['pid'][i] == 1:
         if firstTrack:
+            text.write("TRACKS\nTracks\n\n")
             if not os.path.exists(os.path.dirname(outdir + 'tracks/')):
                 try:
                     os.makedirs(os.path.dirname(outdir + 'tracks/'))
@@ -220,6 +219,7 @@ for i, event in enumerate(all_events['hits']):
     ## if cascade, copy I3R file and add to cascades folder.txt
     elif all_events['pid'][i] == 0:
         if firstCascade:
+            text.write("CASCAD\nCascades\n\n")
             if not os.path.exists(os.path.dirname(outdir + 'cascades/')):
                 try:
                     os.makedirs(os.path.dirname(outdir + 'cascades/'))
@@ -238,6 +238,7 @@ for i, event in enumerate(all_events['hits']):
     ## if undetermined, copy I3R file and add to undetermined folder.txt
     else:
         if firstUndetermined:
+            text.write("UNDETE\nUndetermined\n\n")
             if not os.path.exists(os.path.dirname(outdir + 'undetermined/')):
                 try:
                     os.makedirs(os.path.dirname(outdir + 'undetermined/'))
@@ -260,6 +261,8 @@ if not firstTrack:
     trackText.close()
 if not firstCascade:
     cascadeText.close()
+
+text.close()
 
 ## print totals
 print ('Total Events: {0}'.format(j))
