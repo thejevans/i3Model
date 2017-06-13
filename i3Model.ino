@@ -915,6 +915,11 @@ void displayEvents (String filename) {
     // Check for pause and only wait for 10000 loops
     if (stopCheck(10000)) { return; }
 
+    // If on last event, next event = first event in directory
+    if (indexOfCurrentEvent == indexOfLastFile - 1) {
+      nextEventFile = fileNames[0];
+    }
+    
     // If no button pressed, play next event
     playNext = true;
     
