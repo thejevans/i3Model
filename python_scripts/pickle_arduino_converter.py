@@ -127,7 +127,7 @@ outdir = infile[0:infile.find('.')] if outdir == "events" else outdir
 outdir = outdir if outdir.startswith(('/','.','~')) else "./" + outdir
 outdir = outdir if outdir.endswith('/') else outdir + "/"
 
-## make outdir
+## make outdir - Python 2.7 does not check for race condition when creating directories. Must use try/catch block. 
 if not os.path.exists(os.path.dirname(outdir)):
     try:
         os.makedirs(os.path.dirname(outdir))
