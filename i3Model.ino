@@ -74,6 +74,7 @@ bool replay = false;
 bool playNext = false;
 bool playPrev = false;
 bool playFolders = true;
+bool inSetup = true;
 
 // Switch for pausing events or tests
 bool paused = false;
@@ -133,6 +134,7 @@ void setup () {
 
   // Parse the root directory
   parseDir();
+  inSetup = false;
 }
 
 //--------------------------------------------------------------------------------------
@@ -524,7 +526,7 @@ bool parseDirText () {
       }
     }
 
-    else if (String(val) == "autoplay:" && workingDir == "/") { // Is this line the autoplay: property?
+    else if (String(val) == "autoplay:" && workingDir == "/" && inSetup) { // Is this line the autoplay: property?
       autoplayProperty = true;
     }
 
