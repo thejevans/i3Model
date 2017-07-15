@@ -15,10 +15,7 @@
 #include <vector>
 
 #include <Arduino.h>
-#include "LED.h"
-#include "Event.h"
-#include "timeBin.h"
-#include "Directory.h"
+#include "i3Model.h"
 
 #ifdef __AVR__
 #include <avr/power.h>
@@ -100,15 +97,51 @@ byte activeMenu = 0;
 // Array of pixels
 CRGB pixels[NUM_PIXELS];
 
-//--------------------------------------------------------------------------------------
-// Initial commands
-//--------------------------------------------------------------------------------------
-void i3MClass::setup () {
-  Serial.begin(250000); // Set baud rate to 250000
-  while (!Serial) ; // wait for Arduino Serial Monitor
+Directory::Directory(String in_Path,String in_Autoplay,vector<String>* in_FileNames,vector<String>* in_DescriptiveFileNames,vector<byte>* in_FileTypes) {
+  if (in_Path == "/") {
+    Directory::isRoot = true;
+    Directory::autoplay = in_Autoplay;
+  }
+  else {
+    Directory::isRoot = false;
+    Directory::autoplay = "";
+  }
+  Directory::path = in_Path;
+  Directory::fileNames = in_FileNames;
+  Directory::descriptiveFileNames = in_DescriptiveFileNames;
+  Directory::fileTypes = in_FileTypes;
+  Directory::containsEvents = false;
+}
 
-  delay(500); // needed to properly boot on first try
+Directory::Directory(String in_Path,vector<String>* in_FileNames,vector<String>* in_DescriptiveFileNames,vector<byte>* in_FileTypes) {
+  if (in_Path == "/") {
+    Directory::isRoot = true;
+  }
+  else {
+    Directory::isRoot = false;
+  }
+  Directory::autoplay = "";
+  Directory::path = in_Path;
+  Directory::fileNames = in_FileNames;
+  Directory::descriptiveFileNames = in_DescriptiveFileNames;
+  Directory::fileTypes = in_FileTypes;
+  Directory::containsEvents = false;
+}
 
+void Directory::addFile(String fileName,byte fileType) {
+  Directory::fileNames.push_back(fileName);
+  Directory::fileTypes.push_back(fileType);
+  if ((fileType == 1) && (!containsEvents)) {
+    Directory::containsEvents = true;
+  }
+}
+
+bool Directory::addDescriptiveFileName(String fileName, String descriptiveFileName) {
+  // Make better comparison method here
+  return ;
+}
+
+void i3MClass::setup() {
   // Set LED pin as output
   pinMode(PIN, OUTPUT);
 
@@ -142,55 +175,7 @@ void i3MClass::setup () {
   parseDir();
 }
 
-//--------------------------------------------------------------------------------------
-// Handles touch events
-//--------------------------------------------------------------------------------------
-TS_Point boop () {
-  TS_Point p;
-  if (ts.touched()) {
-    if (released) { // The released flag prevents repreated touch events from being registered when the screen is long-pressed
-      Serial.println("boop!");
-      p = ts.getPoint();
-
-      // Modifies X and Y coordinates to fit the orientation of the screen
-      p.x = -(p.x - 240);
-      p.y = -(p.y - 320);
-
-      Serial.println(p.x);
-      Serial.println(p.y);
-
-      // Flip released flag now that the screen has been touched
-      released = false;
-
-      return p;
-    }
-
-  }
-  else { // No touch event recorded, flip released flag
-    released = true;
-  }
-
-  // If the touchscreen does not register a touch event or not released, set X, Y values to 0
-  p.x = 0;
-  p.y = 0;
-
-  return p;
-}
-
-//--------------------------------------------------------------------------------------
-// Runs loop() a set number of times. Much better than delay.
-//--------------------------------------------------------------------------------------
-void wait (int timer) {
-  for (int i = 0; i < timer; i++) {
-    loop();
-  }
-  return;
-}
-
-//--------------------------------------------------------------------------------------
-// Main loop
-//--------------------------------------------------------------------------------------
-void loop () {
+void i3MClass::run() {
   TS_Point p = boop(); // Checks for touch event
   // Prints buttons on display and responds to touch events
   switch (activeMenu) {
@@ -346,6 +331,51 @@ void loop () {
       }
       break;
   }
+}
+
+//--------------------------------------------------------------------------------------
+// Handles touch events
+//--------------------------------------------------------------------------------------
+TS_Point boop () {
+  TS_Point p;
+  if (ts.touched()) {
+    if (released) { // The released flag prevents repreated touch events from being registered when the screen is long-pressed
+      Serial.println("boop!");
+      p = ts.getPoint();
+
+      // Modifies X and Y coordinates to fit the orientation of the screen
+      p.x = -(p.x - 240);
+      p.y = -(p.y - 320);
+
+      Serial.println(p.x);
+      Serial.println(p.y);
+
+      // Flip released flag now that the screen has been touched
+      released = false;
+
+      return p;
+    }
+
+  }
+  else { // No touch event recorded, flip released flag
+    released = true;
+  }
+
+  // If the touchscreen does not register a touch event or not released, set X, Y values to 0
+  p.x = 0;
+  p.y = 0;
+
+  return p;
+}
+
+//--------------------------------------------------------------------------------------
+// Runs loop() a set number of times. Much better than delay.
+//--------------------------------------------------------------------------------------
+void wait (int timer) {
+  for (int i = 0; i < timer; i++) {
+    loop();
+  }
+  return;
 }
 
 //--------------------------------------------------------------------------------------

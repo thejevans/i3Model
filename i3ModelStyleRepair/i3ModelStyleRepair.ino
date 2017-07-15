@@ -14,11 +14,6 @@
 #include <StandardCplusplus.h>
 #include <vector>
 
-#include "LED.h"
-#include "Event.h"
-#include "timeBin.h"
-#include "Directory.h"
-
 #include "i3Model.h"
 
 void setup () {
