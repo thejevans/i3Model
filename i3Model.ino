@@ -61,6 +61,7 @@ byte lastPage;
 byte fileType[255];
 byte filesOnScreen;
 bool containsEvents = false;
+bool autoplay = false;
 
 // Global variables for event management
 String prevEventFile;
@@ -74,7 +75,6 @@ bool replay = false;
 bool playNext = false;
 bool playPrev = false;
 bool playFolders = true;
-bool inSetup = true;
 
 // Switch for pausing events or tests
 bool paused = false;
@@ -134,7 +134,10 @@ void setup () {
 
   // Parse the root directory
   parseDir();
-  inSetup = false;
+  if(autoplay) {
+    autoplay = false;
+    parseDir();
+  }
 }
 
 //--------------------------------------------------------------------------------------
@@ -416,7 +419,7 @@ bool parseDir () {
   Serial.println(hasEvents);
 
   // If folder playing is turned on, play the first file in the folder
-  if ((playFolders) && (hasEvents) && (workingDir != "/")) {
+  if ((playFolders) && (hasEvents) && (workingDir != "/") && !autoplay) {
     makeHomeMenu(0);
     play(2, fileNames[0]);
     while ((playNext) || (playPrev)) { // If prev. or next selected, play that event
@@ -501,7 +504,7 @@ bool parseDirText () {
       if (String(val) != "") {
         autoplayProperty = false;
         workingDir = workingDir + String(val);
-        parseDir();
+        autoplay = true;
       }
     }
 
@@ -526,7 +529,7 @@ bool parseDirText () {
       }
     }
 
-    else if (String(val) == "autoplay:" && workingDir == "/" && inSetup) { // Is this line the autoplay: property?
+    else if (String(val) == "autoplay:" && workingDir == "/") { // Is this line the autoplay: property?
       autoplayProperty = true;
     }
 
