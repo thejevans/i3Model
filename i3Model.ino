@@ -133,10 +133,11 @@ void setup () {
   makeHomeMenu(0);
 
   // Parse the root directory
-  parseDir();
+  parseDir(true);
   if(autoplay) {
     autoplay = false;
-    parseDir();
+    Serial.println("autoplay off");
+    parseDir(false);
   }
 }
 
@@ -349,7 +350,7 @@ void loop () {
 //--------------------------------------------------------------------------------------
 // Parse directory
 //--------------------------------------------------------------------------------------
-bool parseDir () {
+bool parseDir (bool initRun) {
   File dir = SD.open(workingDir);
 
   // Returns to the beginning of the working directory
@@ -412,14 +413,20 @@ bool parseDir () {
   // If the directory has a folder.txt, parse it
   if (hasFolderText) {
     Serial.println("parsing folder.txt");
-    parseDirText();
+    parseDirText(initRun);
   }
 
+  Serial.print("playFolders: ");
+  Serial.println(playFolders);
   Serial.print("hasEvents: ");
   Serial.println(hasEvents);
-
+  Serial.print("workingDir: ");
+  Serial.println(workingDir);
+  Serial.print("autoplay: ");
+  Serial.println(autoplay);
+  
   // If folder playing is turned on, play the first file in the folder
-  if ((playFolders) && (hasEvents) && (workingDir != "/") && !autoplay) {
+  if ((playFolders) && (hasEvents) && (workingDir != "/") && !initRun) {
     makeHomeMenu(0);
     play(2, fileNames[0]);
     while ((playNext) || (playPrev)) { // If prev. or next selected, play that event
@@ -455,7 +462,7 @@ bool parseDir () {
 //--------------------------------------------------------------------------------------
 // Parse folder.txt
 //--------------------------------------------------------------------------------------
-bool parseDirText () {
+bool parseDirText (bool initRun) {
   bool hasEvents = false;
   bool hasEventsProperty = false;
   bool mapsProperty = false;
@@ -503,8 +510,10 @@ bool parseDirText () {
     else if (autoplayProperty) { // If the previous line was the property for autoplay, this line is the value
       if (String(val) != "") {
         autoplayProperty = false;
-        workingDir = workingDir + String(val);
-        autoplay = true;
+        if(initRun) {
+          workingDir = workingDir + String(val);
+          autoplay = true;
+        }
       }
     }
 
@@ -1238,7 +1247,7 @@ bool displayFiles (bool changedDir) {
     tft.setTextSize(1);
     tft.println("Loading Files...");
 
-    if ((parseDir()) && (playFolders)) { return true; }
+    if ((parseDir(false)) && (playFolders)) { return true; }
 
     tft.fillRect(10, 10, 10+6*16, 10+8, ILI9341_BLACK);
   }
