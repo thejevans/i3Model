@@ -50,6 +50,7 @@ smap = { 1:  1, 2: 2 , 3: 3 , 4 :4 , 5 :5 , 6 :6 ,
 
 maindir = '/data/i3store0/users/elims/display3D/elimstuff/i3files/'
 events  = {'date':[], 'id':[], 'energy':[], 'zenith':[], 'pid':[], 'hits':[]} ## hits are sorted in time
+max_events_per_folder = 510
 
 ## Kloppo info
 kloppo = { 'zenith': 101.     , ## in degree
@@ -182,6 +183,16 @@ def get_event_info (frame, reco_particle, pulseseries):
 ####################################
 ##### Functions to conver to I3R
 ####################################
+def get_subevents (nth_folder):
+
+    ''' Get sub events based on the nth folder '''
+
+    subevents = {}
+    start_index = max_events_per_folder*nth_folder
+    for key in events.keys():
+        subevents[key] = events[key][start_index:start_index+max_events_per_folder-1]
+    return subevents
+
 def flatten (dom, string):
 
     ''' Converts from DOM/String format to LED value '''
@@ -203,22 +214,35 @@ def eventToArray (event, maxBrightness, totalBins):
     tbin       = np.arange(len(event.T[0])) / int(round(len(event.T[0]) / totalBins))
     wavelength = (700. - 300. * tbin / totalBins).astype(int)
 
-    eventArray = np.array([])
-    for i, pulse in enumerate(event):
-        [r, g, b] = wav2RGB(wavelength[i])
+    ### determine what color represents
+    oindex = 3 if charge_based else 0
+    ordering = np.argsort (event.T[oindex])
 
+    ### assign color
+    eventArray =[]
+    for i, pulse in enumerate(event[ordering]):
+        [r, g, b] = wav2RGB(wavelength[i])
         r  *= brightness[i]
         g  *= brightness[i]
         b  *= brightness[i]
         led = flatten(pulse[1], pulse[2])
+        eventArray.append ([led, r, g, b])
+    ## rearrage pulses by time
+    eventArray = np.array ([a for _,a in sorted (zip(ordering, eventArray))])
 
-        if (r > 0) or (g > 0) or (b > 0):
-            eventArray = np.append(eventArray, [led, int(r), int(g), int(b)])
-
-        if (i==len(event)-1) or (not wavelength[i]==wavelength[i+1]):
-            eventArray = np.append(eventArray, ['n'])
-
-    return eventArray
+    ### clean up event array
+    cleanArray = []
+    t = tbin[0]
+    for m, pulse in enumerate (eventArray):
+        ## remove pulses with r/g/b=0
+        if np.sum (pulse[1:3])==0: continue
+        ## add n flag if different time bin or if end of event
+        if not tbin[m]==t: cleanArray.append ('n')
+        ## append pulses
+        cleanArray.append (np.array (pulse).astype (int))
+        t = tbin[m]
+    cleanArray.append ('n')
+    return np.hstack (cleanArray).astype (str)
 
 def wav2RGB(wavelength):
 
@@ -292,6 +316,8 @@ parser.add_option("-k", "--kloppo", action="store_true", default=False,
 parser.add_option("-a", "--infile", type="string",
                   default=None, help="i3File from real events")
 #### misc
+parser.add_option("-b", "--bins", type = "int", default = 32,
+                  help = "number of time bins in animation")
 parser.add_option("-n", "--nevents", type="int", default=-1,
                   help="number of events to write to pickled dictionary")
 parser.add_option("-v", "--verbose", action="store_true", default=False,
@@ -315,10 +341,14 @@ outdir    = options.outdir
 bins      = options.bins
 charge_based = options.charge_based
 
+directory = 'hese' if ishese else 'recent' if isrecent else \
+            'kloppo' if iskloppo else 'diffuse' if isdiffusenumu else 'current'
+outdir += directory
+
 print ('#### number of input files: {0}'.format(len(infiles)))
-print ('#### writing to {0}'.format(outdir))
+ext = '_qbased' if charge_based else ''
+print ('#### writing to {0}X{1}/'.format(outdir, ext))
 print ('#### ')
-check_path (outdir)
 
 #####################################
 ##### Let's start from here !
@@ -364,56 +394,65 @@ print ('####')
 ###########################################
 ## Step 2: convert events to I3R files
 print ('#### STEP 2: convert events to I3R files')
+nfolders = np.ceil (len (events['hits']) / float (max_events_per_folder))
 
-## make main folder.txt
-text = open(outdir + 'folder.txt', 'w')
-text.write("contains events:\nfalse\n\nmaps:\nALL\nAll\n\n")
+for nf in np.arange (nfolders).astype (int):
 
-## create folders
-check_path (outdir + 'all/')
-Texts = {}
-for p in np.unique (events['pid']):
-    ptype = 'cascades' if p==0 else 'tracks' if p==1 else 'undetermined'
-    check_path (outdir + ptype + '/')
-    line = "UNDETE\nUndetermined\n\n" if ptype=='undetermined' else \
-           ptype.upper () + '\n'+ptype.title ()+'\n\n'
-    text.write (line)
-    Texts[ptype] = open (outdir + ptype + '/folder.txt', 'w')
-    Texts[ptype].write("contains events:\ntrue\n\nmaps:\n")
+    subevents = get_subevents (nf)
+    suboutdir = outdir+str(nf)
+    if charge_based: suboutdir += '_qbased'
+    suboutdir += '/'
+    check_path (suboutdir)
+    print ('#### the {0}th directory ({1} events): {2}'.format (nf, len (subevents['pid']), suboutdir))
 
-## start all/folder.txt
-Texts['all'] = open (outdir + 'all/folder.txt', 'w')
-Texts['all'].write ("contains events:\ntrue\n\nmaps:\n")
+    #### make folder.txt's
+    ## main text folder.txt with no events
+    text = open(suboutdir + 'folder.txt', 'w')
+    text.write("contains events:\nfalse\n\nmaps:\nALL\nAll\n\n")
+    ## text folder / folder.txt for each type (all / cascade / track / undetermined)
+    check_path (suboutdir + 'all/')
+    Texts = {}
+    Texts['all'] = open (suboutdir + 'all/folder.txt', 'w')
+    Texts['all'].write ("contains events:\ntrue\n\nmaps:\n")
+    for p in np.unique (subevents['pid']):
+        ptype = 'cascades' if p==0 else 'tracks' if p==1 else 'undetermined'
+        check_path (suboutdir + ptype + '/')
+        line = "UNDETE\nUndetermined\n\n" if ptype=='undetermined' else \
+               ptype.upper () + '\n' + ptype.title () + '\n\n'
+        text.write (line)
+        Texts[ptype] = open (suboutdir + ptype + '/folder.txt', 'w')
+        Texts[ptype].write ("contains events:\ntrue\n\nmaps:\n")
 
-## start looping each event (from track first)
-for i, event in enumerate (events['hits']):
+    #### start looping each event 
+    for i, event in enumerate (subevents['hits']):
+        
+        ## make a I3R file per event
+        output = open (suboutdir + 'all/' + "%06d" % i + '-' + subevents['id'][i] + '.I3R', 'w')
+        output.write ("q\n%s\n%s\n%s\n%s\n%s\n" % (subevents['date'][i]  , subevents['id'][i] , subevents['energy'][i],
+                                                   subevents['zenith'][i], subevents['pid'][i] ))
+        for item in eventToArray (event, max_brightness, bins):
+            output.write ("%s\n" % item)
+        output.close ()
+        j += 1
 
-    ## make a I3R file per event
-    output = open (outdir + 'all/' + "%06d" % i + '-' + events['id'][i] + '.I3R', 'w')
-    output.write ("q\n%s\n%s\n%s\n%s\n%s\n" % (events['date'][i], events['id'][i], events['energy'][i], events['zenith'][i], events['pid'][i]))
-    for item in eventToArray (event, max_brightness, bins):
-        output.write ("%s\n" % item)
-    output.close ()
-    j += 1
+        ## add to all folder.txt
+        Texts['all'].write ("%06d\n%s\n\n" % (i, subevents['id'][i]))
+        
+        ## copy I3R file to corresponding folder based on pid
+        ptype = 'cascades' if subevents['pid'][i]==0 else 'tracks' if subevents['pid'][i]==1 else 'undetermined'
+        Texts[ptype].write ("%06d\n%s\n\n" % (i, subevents['id'][i]))
+        shutil.copy(suboutdir + 'all/' + "%06d" % i + '-' + subevents['id'][i] + '.I3R', suboutdir + ptype + '/')
+        if 'track' in ptype:
+            k += 1
+        elif 'cascade' in ptype:
+            l += 1
+        else:
+            m += 1
 
-    ## add to all folder.txt
-    Texts['all'].write ("%06d\n%s\n\n" % (i,events['id'][i]))
-
-    ## copy I3R file to corresponding folder based on pid
-    ptype = 'cascades' if events['pid'][i]==0 else 'tracks' if events['pid'][i]==1 else 'undetermined'
-    Texts[ptype].write ("%06d\n%s\n\n" % (i,events['id'][i]))
-    shutil.copy(outdir + 'all/' + "%06d" % i + '-' + events['id'][i] + '.I3R', outdir + ptype + '/')
-    if 'track' in ptype:
-        k += 1
-    elif 'cascade' in ptype:
-        l += 1
-    else:
-        m += 1
-
-## close all opened folder.txt files
-for ptype in Texts.keys ():
-    Texts[ptype].close ()
-text.close()
+    ## close all opened folder.txt files
+    for ptype in Texts.keys ():
+        Texts[ptype].close ()
+    text.close()
 print ('####')
 
 ## print totals
