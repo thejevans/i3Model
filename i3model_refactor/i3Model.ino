@@ -1,41 +1,113 @@
-#define MAX_BUTTONS 20 //Maximum buttons on the screen
+#include <Adafruit_GFX.h>     // Core graphics library
+#include <SPI.h>              // this is needed for display
+#include <Adafruit_ILI9341.h> // Display library
+#include <Wire.h>             // this is needed for FT6206
+#include <Adafruit_FT6206.h>  // Touch library
+#include <SD.h>               // SD card library
+#include <FastLED.h>          // FastLED library
+#include "Directory.h"
+#include "Display.h"
 
-bool released = true;
-int buttonMap[MAX_BUTTONS][5];
-// Buttons:
-//  1 =
-//  2 =
-//  3 =
-//  4 =
-//  5 =
-//  6 =
-//  7 =
-//  8 =
-//  9 =
-// 10 =
-//11+ = 
-TS_Point boop () {
+#ifdef __AVR__
+#include <avr/power.h>
+#endif
+
+// SPI pins
+#define TFT_RST 8
+#define TFT_DC 9
+#define TFT_CS 10
+
+// Use hardware SPI (on Uno, #13, #12, #11) and the above for CS/DC
+Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
+Adafruit_FT6206 ts = Adafruit_FT6206();
+
+// Set maximum brightness
+#define MAX_BRIGHTNESS 100
+
+// Which pin on the Arduino is connected to the NeoPixels?
+#define PIN 12
+
+// We have 80 strings x 60 doms/string = 4800 total doms NeoPixels are attached to the Arduino.
+#define NUM_PIXELS 4800
+
+// Maximum number of characters per line in event files
+#define MAX_LINE_LENGTH 20
+
+// Set pin for SD card
+#define CHIP_SELECT 4
+
+// Maximum number of files per page of the file menu
+#define FILES_PER_PAGE 8
+
+// Maximum buttons on the screen
+#define MAX_BUTTONS 20
+
+Directory globalDirectory = Directory();
+Display globalDisplay = Display<MAX_BUTTONS>();
+
+void setup () {
+  Serial.begin(250000); // Set baud rate to 250000
+  while (!Serial) ; // wait for Arduino Serial Monitor
+
+  delay(500); // needed to properly boot on first try
+
+  // Set LED pin as output
+  pinMode(PIN, OUTPUT);
+
+  // Initialize touchscreen
+  tft.begin();
+  ts.begin();
+
+  // Initialize FastLED
+  FastLED.addLeds<NEOPIXEL, PIN>(pixels, NUM_PIXELS);
+
+  // Clear NeoPixels
+  clearPixels();
+
+  // Clear TFT
+  pinMode(TFT_CS, OUTPUT);
+  digitalWrite(TFT_CS, HIGH);
+
+  // End program if no SD card detected
+  if (!SD.begin(CHIP_SELECT)) {
+    Serial.println("Card failed, or not present");
+    // don't do anything more:
+    return;
+  }
+  Serial.println("card initialized.");
+
+  // Display initial home menu
+  tft.fillScreen(ILI9341_BLACK);
+  makeHomeMenu(0);
+
+  // Parse the root directory
+  openDir(globalDirectory);
+}
+
+TS_Point boop (Display *workingDisplay) {
     TS_Point p;
     if (ts.touched()) {
-        if (released) {
+        if (*workingDisplay.released) {
             p = ts.getPoint();
 
             // Modifies X and Y coordinates to fit the orientation of the screen
             p.x = 240 - p.x;
             p.y = 320 - p.y;
-            released = false;
+            *workingDisplay.released = false;
             return p;
         }
     }
-    else { released = true; }
+    else { *workingDisplay.released = true; }
     p.x = 0;
     p.y = 0;
     return p;
 }
 
 void loop () {
-    TS_Point p = boop();
-    int button = buttonPressed(activeMenu,p);
+    Directory workingDirectory = globalDirectory;
+    Display workingDisplay = globalDisplay;
+    TS_Point p = boop(&workingDisplay);
+    int button = buttonPressed(workingDisplay,p);
 
     switch (button) {
         case 0: //None
@@ -59,8 +131,8 @@ void loop () {
         case 4: //Files
         makeHomeMenu();
         page = 0; // page = 0 to clear screen
-        workingDir = "/";
-        makeFileMenu(true); // Switch to file menu
+        workingDirectory = Directory();
+        makeFileMenu(workingDirectory, true); // Switch to file menu
         break;
 
         case 5: //Stop
@@ -151,6 +223,8 @@ void loop () {
         }
         break;
     }
+    globalDirectory = workingDirectory;
+    globalDisplay = workingDisplay;
 }
 
 void wait (int timer) {
@@ -169,66 +243,13 @@ void clearPixels () {
     FastLED.show();
 }
 
-bool openDir () {
-    clearDirGlobals();
-    parseDir();
-
-    // If the directory has a folder.txt, parse it
-    if (hasFolderText) { parseDirText(); }
-
+bool openDir (Directory workingDir) {
     // If folder playing is turned on, play the first file in the folder
-    if ((playFolders) && (hasEvents) && (workingDir != "/")) {
-        playFolder();
+    if ((playFolders) && (workingDir.hasEvents) && (workingDir.name != "/")) {
+        playFolder(workingDir);
         return true;
     }
     return false;
-}
-
-void parseDir () {
-    int i = 0;
-    String k = "";
-    File dir = SD.open(workingDir);
-    dir.rewindDirectory();
-    File entry = dir.openNextFile();
-
-    while (entry) { // While there is a next file in the directory, check for file type
-        k = entry.name();
-        if ((!k.startsWith("_")) && (k != "TRASHE~1") && (k != "SPOTLI~1") && (k != "FSEVEN~1") && (k != "TEMPOR~1")) { // All files that start with underlines are hidden or "deleted"
-          if (k == "FOLDER.TXT") { // If entry is a folder.txt file, parse the file
-              hasFolderText = true;
-          }
-          else if (entry.isDirectory()) { // If entry is a directory, flag it as such
-              fileType[i] = 1;
-              fileNames[i] = k;
-              i++;
-              indexOfLastFile++;
-              Serial.println(k);
-          }
-          else if (k.substring(k.indexOf('.')) == ".I3R") { //If the file extension is .I3R, mark as event file
-              fileType[i] = 2;
-              fileNames[i] = k;
-              i++;
-              indexOfLastFile++;
-              totalEventsInWorkingDir++;
-              Serial.println(k);
-              hasEvents = true;
-          }
-        }
-
-        // Close the file and open the next one
-        entry.close();
-        entry = dir.openNextFile();
-    }
-
-    // Update number of pages based on number of files
-    lastPage = (indexOfLastFile - (indexOfLastFile % FILES_PER_PAGE)) / FILES_PER_PAGE;
-    if (indexOfLastFile % FILES_PER_PAGE > 0) {
-        lastPage++;
-    }
-
-    // Close the file and directory
-    dir.close();
-    entry.close();
 }
 
 void playFolder () {
@@ -258,20 +279,6 @@ void playFolder () {
     // Clear screen above buttons
     tft.fillRect(0, 0, 240, 218, ILI9341_BLACK);
     makeHomeMenu(0);
-    return;
-}
-
-void clearDirGlobals () {
-    indexOfLastFile = 0;
-    totalEventsInWorkingDir = -1;
-    hasEvents = false;
-    hasFolderText = false;
-
-    for (int j = 0; j < 255; j++) {
-        descriptiveFileNames[j] = "";
-        fileNames[j] = "";
-    }
-
     return;
 }
 
@@ -330,7 +337,7 @@ String readBuffer(File file) {
         if (!file.available()) { break; }
         temp = file.read();
         i++;
-        if (temp == ' ') { i--; }
+        if (temp == ' ') { i--; }0
     }
     return String(val);
 }
