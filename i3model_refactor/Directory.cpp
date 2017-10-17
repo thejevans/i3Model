@@ -1,6 +1,7 @@
 #include "Directory.h"
 #include "Arduino.h"
 #include "SD.h"
+#include "Buffer.h"
 
 Directory::Directory(String inName) {
     name = inName;
@@ -94,7 +95,7 @@ void Directory::parseConfig() {
 
     while (file.available()) {
         String val = "";
-        while (val == "") { val = readBuffer(file); }
+        while (val == "") { val = Buffer.readBuffer(file); }
 
         if (nextMap) { // If the previous line was a filename, this line is the map
             descriptiveFileNames[pos] = val;

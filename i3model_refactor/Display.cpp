@@ -1,4 +1,5 @@
 #include "Display.h"
+#include "Buffer.h"
 
 Display::Display () {
     released = true;
