@@ -8,7 +8,6 @@
 #include <Adafruit_FT6206.h>  // Touch library
 #include <SD.h>               // SD card library
 
-
 Display::Display () {
     released = true;
     playFolders = true;

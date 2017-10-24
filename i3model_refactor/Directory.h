@@ -2,7 +2,6 @@
 #define Directory_h
 
 #include "Arduino.h"
-#include "SD.h"
 
 struct Directory {
     String name;
@@ -17,8 +16,7 @@ struct Directory {
     bool autoplay;
     Directory(String inName);
     Directory();
-    void parse();
-    void parseConfig();
+    void crawl();
 };
 
 #endif

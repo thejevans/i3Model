@@ -86,7 +86,7 @@ void setup () {
 }
 
 void loop () {
-    if (player.playTrigger()) { playEvent(&globalDisplay, &pixels); }
+    if (globalDisplay.playTrigger) { playEvent(&globalDisplay, &pixels); }
 
     TS_Point p = boop(&globalDisplay, &ts);
     int button = globalDisplay.buttonPressed(p);
@@ -194,7 +194,7 @@ void playEvent (Display *workingDisplay, CRGB *leds) {
         }
 
         Serial.println("END OF EVENT");
-        *workingDisplay.endOfEvent();
+        *workingDisplay.playerEndOfEvent();
 
         // Check for pause and only wait for 10000 loops
         if (stopCheck(10000, *workingDisplay)) { return; }

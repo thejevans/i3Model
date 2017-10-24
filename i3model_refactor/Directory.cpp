@@ -35,7 +35,7 @@ Directory::Directory() {
     crawl();
 }
 
-void crawl() {
+void Directory::crawl() {
     String k = "";
     File dir = SD.open(name);
     dir.rewindDirectory();
