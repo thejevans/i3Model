@@ -1,7 +1,7 @@
 #ifndef Display_h
 #define Display_h
 
-template<int MAX_BUTTONS>
+template<int MAX_BUTTONS>;
 
 struct Display {
     bool released;

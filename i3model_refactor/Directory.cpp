@@ -1,7 +1,7 @@
 #include "Directory.h"
 #include "Arduino.h"
 #include "SD.h"
-#include "Buffer.h"
+#include "Parser.h"
 
 Directory::Directory(String inName) {
     name = inName;
@@ -13,11 +13,12 @@ Directory::Directory(String inName) {
     }
     numFiles = 0;
     numEvents = 0;
-    hasFolderText = false;
+    hasConfig = false;
     hasEvents = false;
     autoplay = false;
-    Directory::parse();
+    crawl();
 }
+
 Directory::Directory() {
     name = "/";
     autoplayDir = "";
@@ -28,17 +29,18 @@ Directory::Directory() {
     }
     numFiles = 0;
     numEvents = 0;
-    hasFolderText = false;
+    hasConfig = false;
     hasEvents = false;
     autoplay = false;
-    Directory::parse();
+    crawl();
 }
-void Directory::parse() {
+
+void crawl() {
     String k = "";
     File dir = SD.open(name);
     dir.rewindDirectory();
     File entry = dir.openNextFile();
-    hasFolderText = false;
+    hasConfig = false;
     hasEvents = false;
 
     while (entry) { // While there is a next file in the directory, check for file type
@@ -46,7 +48,7 @@ void Directory::parse() {
         if ((!k.startsWith("_")) && (k != "TRASHE~1") && (k != "SPOTLI~1") && (k != "FSEVEN~1") && (k != "TEMPOR~1")) {
             // All files that start with underlines are hidden or "deleted"
             if (k == "FOLDER.TXT") { // If entry is a folder.txt file, parse the file
-                hasFolderText = true;
+                hasConfig = true;
             }
             else if (entry.isDirectory()) { // If entry is a directory, flag it as such
                 fileType[i] = 1;
@@ -69,62 +71,12 @@ void Directory::parse() {
         entry = dir.openNextFile();
     }
 
-    // Update number of pages based on number of files
-    lastPage = (numFiles - (numFiles % FILES_PER_PAGE)) / FILES_PER_PAGE;
-    if (numFiles % FILES_PER_PAGE > 0) {
-        lastPage++;
-    }
-
     // Close the file and directory
     dir.close();
     entry.close();
 
     // If the directory has a folder.txt, parse it
-    if (hasFolderText) { Directory::parseConfig(); }
+    if (hasConfig) { Parser.config(this); }
 
-    return;
-}
-void Directory::parseConfig() {
-    bool mapsProperty = false;
-    bool nextMap = false;
-    bool autoplayProperty = false;
-
-    int pos = 0;
-
-    File file = SD.open(name + "FOLDER.TXT"); // Open folder.txt in working directory
-
-    while (file.available()) {
-        String val = "";
-        while (val == "") { val = Buffer.readBuffer(file); }
-
-        if (nextMap) { // If the previous line was a filename, this line is the map
-            descriptiveFileNames[pos] = val;
-            nextMap = false;
-        }
-
-        else if (autoplayProperty) { // If the previous line was the property for autoplay, this line is the value
-            autoplayProperty = false;
-            autoplay = true;
-            autoplayDir = val;
-        }
-
-        else if (mapsProperty) { // If the previous line was the property for maps or a map, this is line is a filename
-            // Very inefficient. Replace with better searching method.
-            for (int j = 0; j < numFiles; j++) {
-                int length = min(fileNames[j].length(), 6);
-                if (val == fileNames[j].substring(0,length)) {
-                    pos = j;
-                    nextMap = true;
-                    break;
-                }
-            }
-        }
-
-        else if (val == "autoplay:" && name == "/") { autoplayProperty = true; }
-        else if (val == "maps:") { mapsProperty = true; }
-    }
-
-    // Close the folder.txt file
-    file.close();
     return;
 }

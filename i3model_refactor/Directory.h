@@ -12,7 +12,7 @@ struct Directory {
     int fileTypes[512];
     int numFiles;
     int numEvents;
-    bool hasFolderText;
+    bool hasConfig;
     bool hasEvents;
     bool autoplay;
     Directory(String inName);
