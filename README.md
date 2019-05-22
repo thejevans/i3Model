@@ -178,103 +178,105 @@ To interface with the model, we use a TFT touchscreen from Adafruit. This screen
 
 **Functions and their definitions**
 
-void setup ()
+	```cpp
+	void setup ()
+	```
 
 Initial commands
 
-TS_Point boop ()
+	TS_Point boop ()
 
-	Handles touch events
+Handles touch events
 
-void wait (int timer)
+	void wait (int timer)
 
-	Runs loop() a set number of times. Much better than delay.
+Runs loop() a set number of times. Much better than delay.
 
-void loop ()
+	void loop ()
 
-	Main loop
+Main loop
 
-bool parseDir (bool initRun)
+	bool parseDir (bool initRun)
 
-	Parse directory
+Parse directory
 
-bool parseDirText (bool initRun)
+	bool parseDirText (bool initRun)
 
-	Parse folder.txt
+Parse folder.txt
 
-void play (int type, String arg)
-
-
-    	Plays an event or test: type = (1 = ledTest(), 2 = displayEvents()), arg = passed to displayEvents()
+	void play (int type, String arg)
 
 
-bool stopCheck (int timer)
+Plays an event or test: type = (1 = ledTest(), 2 = displayEvents()), arg = passed to displayEvents()
 
 
-    	Checks for pause and stop: timer = (< 0 = no timer, > 0 = number of loops)
+	bool stopCheck (int timer)
 
 
-void ledTest ()
+Checks for pause and stop: timer = (< 0 = no timer, > 0 = number of loops)
 
 
-    	Tests each string with all 3 solid colors and a gradient to make sure that all leds are working and to help with mapping
+	void ledTest ()
 
 
-void displayEvents (String filename)
+Tests each string with all 3 solid colors and a gradient to make sure that all leds are working and to help with mapping
 
 
-    	Display a selected event file: filename = name of event file in working directory to be displayed
+	void displayEvents (String filename)
 
 
-void setStringColor (int stringNum, byte r, byte g, byte b)
+Display a selected event file: filename = name of event file in working directory to be displayed
 
 
-    	Displays a solid color on a given string: stringNum = string number (0 - 79), r,g,b = color values
+	void setStringColor (int stringNum, byte r, byte g, byte b)
 
 
-void setStringGrad (int stringNum, byte ir, byte ig, byte ib, byte fr, byte fg, byte fb) 
+Displays a solid color on a given string: stringNum = string number (0 - 79), r,g,b = color values
 
 
-    	Displays a gradient on a given string: stringNum = string number (0 - 79), ir,ig,ib = initial color values, fr,fg,fb = final color values
+	void setStringGrad (int stringNum, byte ir, byte ig, byte ib, byte fr, byte fg, byte fb) 
 
 
-void clearPixels ()
+Displays a gradient on a given string: stringNum = string number (0 - 79), ir,ig,ib = initial color values, fr,fg,fb = final color values
 
 
-    	Clears all LEDs
+	void clearPixels ()
 
 
-void makeHomeMenu (int selection)
+Clears all LEDs
 
 
-    	Make home menu. selection = (0 = no selection, 1 = top left, 2 = top right, 3 = bottom left, 4 = bottom right)
+	void makeHomeMenu (int selection)
 
 
-void makeFileMenu (int selection, bool changedDir)
+Make home menu. selection = (0 = no selection, 1 = top left, 2 = top right, 3 = bottom left, 4 = bottom right)
 
 
-    	Make file menu. selection = (0 = no selection, 1 = back, 2 = next), changedDir = passed to displayFiles()
+	void makeFileMenu (int selection, bool changedDir)
 
 
-bool displayFiles (bool changedDir)
+Make file menu. selection = (0 = no selection, 1 = back, 2 = next), changedDir = passed to displayFiles()
 
 
-    	Displays file and directory buttons: changedDir = True if the working directory has changed
+	bool displayFiles (bool changedDir)
 
 
-void pullFile(String filename)
+Displays file and directory buttons: changedDir = True if the working directory has changed
 
 
-    	Pull a file from the Serial port
+	void pullFile(String filename)
 
 
-    	_Could be used to add files to the SD card via USB without reprogramming the Arduino. Not fully implemented._
+Pull a file from the Serial port
 
 
-void nextPulse()
+_Could be used to add files to the SD card via USB without reprogramming the Arduino. Not fully implemented._
 
 
-    	signal python: next pulse
+	void nextPulse()
 
 
-    	_Could be used to stream data from an external source to the LEDs, possibly for real-time presentation. Not fully implemented._
+signal python: next pulse
+
+
+_Could be used to stream data from an external source to the LEDs, possibly for real-time presentation. Not fully implemented._
