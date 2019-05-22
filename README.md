@@ -135,7 +135,9 @@ The Arduino library for SD cards uses the original FAT file system. It does this
 
 *   The library is not able to distinguish between hidden ‘system’ files, deleted files, and the files that we want it to recognize. To solve this, the following conditional is added to filter when crawling a directory on the SD card:
 
-    	(!k.startsWith("_")) && (k != "TRASHE~1") && (k != "SPOTLI~1") && (k != "FSEVEN~1") && (k != "TEMPOR~1")
+```cpp
+(!k.startsWith("_")) && (k != "TRASHE~1") && (k != "SPOTLI~1") && (k != "FSEVEN~1") && (k != "TEMPOR~1")
+```
 
 *   There is a limit to how many files and/or directories that one directory can contain of 512 files. In order to work around this, when converting events to I3R format, the converter generates a new folder when it hits a limit of 511 files (to allow for folder.txt). This has an added benefit of not overtaxing the arduino in terms of mapping descriptive file names and in terms of memory required to store strings.
 
@@ -184,97 +186,108 @@ void setup ()
 
 Initial commands
 
-	TS_Point boop ()
+```cpp
+TS_Point boop ()
+```
 
 Handles touch events
 
-	void wait (int timer)
+```cpp
+void wait (int timer)
+```
 
 Runs loop() a set number of times. Much better than delay.
 
-	void loop ()
+```cpp
+void loop ()
+```
 
 Main loop
 
-	bool parseDir (bool initRun)
+```cpp
+bool parseDir (bool initRun)
+```
 
 Parse directory
 
-	bool parseDirText (bool initRun)
+```cpp
+bool parseDirText (bool initRun)
+```
 
 Parse folder.txt
 
-	void play (int type, String arg)
-
+```cpp
+void play (int type, String arg)
+```
 
 Plays an event or test: type = (1 = ledTest(), 2 = displayEvents()), arg = passed to displayEvents()
 
-
-	bool stopCheck (int timer)
-
+```cpp
+bool stopCheck (int timer)
+```
 
 Checks for pause and stop: timer = (< 0 = no timer, > 0 = number of loops)
 
-
-	void ledTest ()
-
+```cpp
+void ledTest ()
+```
 
 Tests each string with all 3 solid colors and a gradient to make sure that all leds are working and to help with mapping
 
-
-	void displayEvents (String filename)
-
+```cpp
+void displayEvents (String filename)
+```
 
 Display a selected event file: filename = name of event file in working directory to be displayed
 
-
-	void setStringColor (int stringNum, byte r, byte g, byte b)
-
+```cpp
+void setStringColor (int stringNum, byte r, byte g, byte b)
+```
 
 Displays a solid color on a given string: stringNum = string number (0 - 79), r,g,b = color values
 
-
-	void setStringGrad (int stringNum, byte ir, byte ig, byte ib, byte fr, byte fg, byte fb) 
-
+```cpp
+void setStringGrad (int stringNum, byte ir, byte ig, byte ib, byte fr, byte fg, byte fb) 
+```
 
 Displays a gradient on a given string: stringNum = string number (0 - 79), ir,ig,ib = initial color values, fr,fg,fb = final color values
 
-
-	void clearPixels ()
-
+```cpp
+void clearPixels ()
+```
 
 Clears all LEDs
 
-
-	void makeHomeMenu (int selection)
-
+```cpp
+void makeHomeMenu (int selection)
+```
 
 Make home menu. selection = (0 = no selection, 1 = top left, 2 = top right, 3 = bottom left, 4 = bottom right)
 
-
-	void makeFileMenu (int selection, bool changedDir)
-
+```cpp
+void makeFileMenu (int selection, bool changedDir)
+```
 
 Make file menu. selection = (0 = no selection, 1 = back, 2 = next), changedDir = passed to displayFiles()
 
-
-	bool displayFiles (bool changedDir)
-
+```cpp
+bool displayFiles (bool changedDir)
+```
 
 Displays file and directory buttons: changedDir = True if the working directory has changed
 
-
-	void pullFile(String filename)
-
+```cpp
+void pullFile(String filename)
+```
 
 Pull a file from the Serial port
 
 
 _Could be used to add files to the SD card via USB without reprogramming the Arduino. Not fully implemented._
 
-
-	void nextPulse()
-
+```cpp
+void nextPulse()
+```
 
 signal python: next pulse
 
