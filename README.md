@@ -28,31 +28,36 @@ _property:_
 
 has events:			_depreciated_
 
-	This was used to determine whether or not the directory contained events. Better methods were used in later versions, but this option may show up in old files.
+	This was used to determine whether or not the directory contained events. 
+	Better methods were used in later versions, but this option may show up in old files.
 
 autoplay:			_only in root directory_
 
-	This property is used to autoplay events. The argument passed is the absolute path to the directory containing the events wished to loop over. Upon parsing this setting on startup, the system will play all events in the directory in a loop.
+	This property is used to autoplay events. The argument passed is the absolute 
+	path to the directory containing the events wished to loop over. Upon parsing 
+	this setting on startup, the system will play all events in the directory in a loop.
 
 maps:
 
-	This property has a different syntax from the other properties available. ‘maps:’ must be the last property in a `folder.txt` file. All following lines will be parsed as if they are filename maps with syntax as follows:
+	This property has a different syntax from the other properties available. 
+	‘maps:’ must be the last property in a `folder.txt` file. All following lines 
+	will be parsed as if they are filename maps with syntax as follows:
 
-maps:
+		maps:
 
-	#####1			first 6 digits of a filename, generally numeric characters
+		#####1			first 6 digits of a filename, generally numeric characters
 
-	Descriptive file name 1
+		Descriptive file name 1
 
-	#####2
+		#####2
 
-	Descriptive file name 2
+		Descriptive file name 2
 
-	…
+		…
 
-	…
+		…
 
-	It is not necessary that every file in the folder have a descriptive file name.
+		It is not necessary that every file in the folder have a descriptive file name.
 
 **.I3R Format**
 
