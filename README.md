@@ -178,9 +178,9 @@ To interface with the model, we use a TFT touchscreen from Adafruit. This screen
 
 **Functions and their definitions**
 
-	```cplusplus
-	void setup ()
-	```
+```cpp
+void setup ()
+```
 
 Initial commands
 
