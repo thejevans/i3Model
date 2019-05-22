@@ -37,13 +37,13 @@ maps:
 *   This property has a different syntax from the other properties available. ‘maps:’ must be the last property in a `folder.txt` file. All following lines will be parsed as if they are filename maps with syntax as follows:
 
 		maps:
-		#####1			first 6 digits of a filename, generally numeric characters
+		#####1			//first 6 digits of a filename, generally numeric characters
 		Descriptive file name 1
 		#####2
 		Descriptive file name 2
 		…
 		…
-		It is not necessary that every file in the folder have a descriptive file name.
+	It is not necessary that every file in the folder have a descriptive file name.
 
 **.I3R Format**
 
@@ -55,21 +55,21 @@ The character ‘q’ can be found at the top of any I3R file created after vers
 
 	date of event
 	event ID
-	event energy			_in TeV_
-	Zenith				_in degrees_
-	PID				_track (1), cascade (0), or undetermined (-1)_
+	event energy			//in TeV
+	Zenith				//in degrees
+	PID				//track (1), cascade (0), or undetermined (-1)
 After these lines, the Arduino expects to start seeing LED data in this format:
 	
-	####				_LED address (0-4799)_
-	###				_red value (0-255)_
-	###				_green value (0-255)_
-	###				_blue value (0-255)_
+	####				//LED address (0-4799)
+	###				//red value (0-255)
+	###				//green value (0-255)
+	###				//blue value (0-255)
 	####
 	###
 	###
 	###
 	...
-	n				_end of time bin_
+	n				//end of time bin
 	####
 	###
 	###
@@ -77,7 +77,7 @@ After these lines, the Arduino expects to start seeing LED data in this format:
 	...
 	n
 	...
-	x				_end of event (depreciated)_
+	x				//end of event (depreciated)
 
 **Limits of microSD card**
 
