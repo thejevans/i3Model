@@ -40,11 +40,11 @@ maps:
 
 maps:
 
-	&#35;&#35;&#35;&#35;&#35;1			_first 6 digits of a filename, generally numeric characters_
+	#####1			first 6 digits of a filename, generally numeric characters
 
 	Descriptive file name 1
 
-	&#35;&#35;&#35;&#35;&#35;2
+	#####2
 
 	Descriptive file name 2
 
