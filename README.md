@@ -135,7 +135,7 @@ The Arduino library for SD cards uses the original FAT file system. It does this
 
 *   The library is not able to distinguish between hidden ‘system’ files, deleted files, and the files that we want it to recognize. To solve this, the following conditional is added to filter when crawling a directory on the SD card:
 
-    (!k.startsWith("_")) && (k != "TRASHE~1") && (k != "SPOTLI~1") && (k != "FSEVEN~1") && (k != "TEMPOR~1")
+    	(!k.startsWith("_")) && (k != "TRASHE~1") && (k != "SPOTLI~1") && (k != "FSEVEN~1") && (k != "TEMPOR~1")
 
 *   There is a limit to how many files and/or directories that one directory can contain of 512 files. In order to work around this, when converting events to I3R format, the converter generates a new folder when it hits a limit of 511 files (to allow for folder.txt). This has an added benefit of not overtaxing the arduino in terms of mapping descriptive file names and in terms of memory required to store strings.
 
