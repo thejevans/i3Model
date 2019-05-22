@@ -11,7 +11,7 @@ Python software: Elim Cheung, John Evans
 
 Arduino software: John Evans, Elim Cheung
 
-### Documentation
+## Documentation
 
 **Folder.txt (config) functionality**
 
@@ -41,11 +41,11 @@ This property has a different syntax from the other properties available. ‘map
 
 maps:
 
-#####1			_first 6 digits of a filename, generally numeric characters_
+&#35;&#35;&#35;&#35;&#35;1			_first 6 digits of a filename, generally numeric characters_
 
 Descriptive file name 1
 
-#####2
+&#35;&#35;&#35;&#35;&#35;2
 
 Descriptive file name 2
 
@@ -75,33 +75,33 @@ PID				_track (1), cascade (0), or undetermined (-1)_
 
 After these lines, the Arduino expects to start seeing LED data in this format:
 
-####				_LED address (0-4799)_
+&#35;&#35;&#35;&#35;				_LED address (0-4799)_
 
-###				_red value (0-255)_
+&#35;&#35;&#35;				_red value (0-255)_
 
-###				_green value (0-255)_
+&#35;&#35;&#35;				_green value (0-255)_
 
-###				_blue value (0-255)_
+&#35;&#35;&#35;				_blue value (0-255)_
 
-####
+&#35;&#35;&#35;&#35;
 
-###
+&#35;&#35;&#35;
 
-###
+&#35;&#35;&#35;
 
-###
+&#35;&#35;&#35;
 
 ...
 
 n				_end of time bin_
 
-####
+&#35;&#35;&#35;&#35;
 
-###
+&#35;&#35;&#35;
 
-###
+&#35;&#35;&#35;
 
-###
+&#35;&#35;&#35;
 
 ...
 
@@ -209,61 +209,61 @@ void play (int type, String arg)
     	Plays an event or test: type = (1 = ledTest(), 2 = displayEvents()), arg = passed to displayEvents()
 
 
-    bool stopCheck (int timer)
+bool stopCheck (int timer)
 
 
     	Checks for pause and stop: timer = (< 0 = no timer, > 0 = number of loops)
 
 
-    void ledTest ()
+void ledTest ()
 
 
     	Tests each string with all 3 solid colors and a gradient to make sure that all leds are working and to help with mapping
 
 
-    void displayEvents (String filename)
+void displayEvents (String filename)
 
 
     	Display a selected event file: filename = name of event file in working directory to be displayed
 
 
-    void setStringColor (int stringNum, byte r, byte g, byte b)
+void setStringColor (int stringNum, byte r, byte g, byte b)
 
 
     	Displays a solid color on a given string: stringNum = string number (0 - 79), r,g,b = color values
 
 
-    void setStringGrad (int stringNum, byte ir, byte ig, byte ib, byte fr, byte fg, byte fb) 
+void setStringGrad (int stringNum, byte ir, byte ig, byte ib, byte fr, byte fg, byte fb) 
 
 
     	Displays a gradient on a given string: stringNum = string number (0 - 79), ir,ig,ib = initial color values, fr,fg,fb = final color values
 
 
-    void clearPixels ()
+void clearPixels ()
 
 
     	Clears all LEDs
 
 
-    void makeHomeMenu (int selection)
+void makeHomeMenu (int selection)
 
 
     	Make home menu. selection = (0 = no selection, 1 = top left, 2 = top right, 3 = bottom left, 4 = bottom right)
 
 
-    void makeFileMenu (int selection, bool changedDir)
+void makeFileMenu (int selection, bool changedDir)
 
 
     	Make file menu. selection = (0 = no selection, 1 = back, 2 = next), changedDir = passed to displayFiles()
 
 
-    bool displayFiles (bool changedDir)
+bool displayFiles (bool changedDir)
 
 
     	Displays file and directory buttons: changedDir = True if the working directory has changed
 
 
-    void pullFile(String filename)
+void pullFile(String filename)
 
 
     	Pull a file from the Serial port
@@ -272,7 +272,7 @@ void play (int type, String arg)
     	_Could be used to add files to the SD card via USB without reprogramming the Arduino. Not fully implemented._
 
 
-    void nextPulse()
+void nextPulse()
 
 
     	signal python: next pulse
