@@ -15,7 +15,7 @@ Arduino software: John Evans, Elim Thompson (Cheung)
 
 **Folder.txt (config) functionality**
 
-Since update 1.1.0 Every time events are converted to the I3R format, the resulting file structure includes a file named “folder.txt” inside each directory. This is a config file that is parsed by the Arduino software whenever it parses the directory in which it resides.
+Since update 1.1.0 Every time events are converted to the I3R format, the resulting file structure includes a file named `folder.txt` inside each directory. This is a config file that is parsed by the Arduino software whenever it parses the directory in which it resides.
 
 Settings used in folder.txt:
 
