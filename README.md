@@ -23,116 +23,76 @@ syntax:
 
 _property:_
 
-	argument
+*   argument
 
 
 has events:			_depreciated_
 
-	This was used to determine whether or not the directory contained events. 
-	Better methods were used in later versions, but this option may show up in old files.
+*   This was used to determine whether or not the directory contained events. Better methods were used in later versions, but this option may show up in old files.
 
 autoplay:			_only in root directory_
 
-	This property is used to autoplay events. The argument passed is the absolute 
-	path to the directory containing the events wished to loop over. Upon parsing 
-	this setting on startup, the system will play all events in the directory in a loop.
+*   This property is used to autoplay events. The argument passed is the absolute path to the directory containing the events wished to loop over. Upon parsing this setting on startup, the system will play all events in the directory in a loop.
 
 maps:
 
-	This property has a different syntax from the other properties available. 
-	‘maps:’ must be the last property in a `folder.txt` file. All following lines 
-	will be parsed as if they are filename maps with syntax as follows:
+*   This property has a different syntax from the other properties available. ‘maps:’ must be the last property in a `folder.txt` file. All following lines will be parsed as if they are filename maps with syntax as follows:
 
 		maps:
-
 		#####1			first 6 digits of a filename, generally numeric characters
-
 		Descriptive file name 1
-
 		#####2
-
 		Descriptive file name 2
-
 		…
-
 		…
-
 		It is not necessary that every file in the folder have a descriptive file name.
 
 **.I3R Format**
 
 Events are stored on a microSD card connected to the Arduino through the Adafruit TFT screen. The I3R file format is simply a text file with a different extension to allow the Arduino to easily determine event files. The format has multiple sections as determined by the following escape characters:
 
-q 				_begin_ _header section_
+	q 				_begin_ _header section_
 
 The character ‘q’ can be found at the top of any I3R file created after version 1.0.0 and denotes the start of the header section of the file. The next five lines contain data pertaining to the event in the file as follows:
 
 	date of event
-
 	event ID
-
 	event energy			_in TeV_
-
 	Zenith				_in degrees_
-
 	PID				_track (1), cascade (0), or undetermined (-1)_
-
 	After these lines, the Arduino expects to start seeing LED data in this format:
-
 	####				_LED address (0-4799)_
-
 	###				_red value (0-255)_
-
 	###				_green value (0-255)_
-
 	###				_blue value (0-255)_
-
 	####
-
 	###
-
 	###
-
 	###
-
 	...
-
 	n				_end of time bin_
-
 	####
-
 	###
-
 	###
-
 	###
-
 	...
-
 	n
-
 	...
-
 	x				_end of event (depreciated)_
 
 **Limits of microSD card**
 
 The Arduino library for SD cards uses the original FAT file system. It does this mainly to save memory, but also for compatibility. This decision causes some problems that we have had to work around.
 
-
-
 *   File names are truncated to 8 characters and case sensitivity in file names is lost. This also means that in order to avoid conflicts with the possibility that multiple files could have the same first 8 characters in their file names, the library truncates files with longer filenames to the first 6 characters of their name, followed by ‘~#’ where ‘#’ is an iterated value starting at 1. The following names:
 
 		helloworlda.txt
-	
 		helloworldb.txt
 
 	would then be truncated to:
 
 		HELLOW~1.TXT
-
 		HELLOW~2.TXT
-
 
     and since the file system does not guarantee alphabetic ordering, the knowledge of which file is which has been lost without examining the contents. To mitigate these problems, when converting events, we add a leading set of 6 incrementing numeric characters to files and use the `folder.txt` file in each directory to map these 6 characters to a distinct descriptive filename up to 255 characters in length that can contain any ASCII characters.
 
