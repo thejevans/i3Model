@@ -17,7 +17,7 @@ Arduino software: John Evans, Elim Thompson (Cheung)
 
 Since update 1.1.0 Every time events are converted to the I3R format, the resulting file structure includes a file named `folder.txt` inside each directory. This is a config file that is parsed by the Arduino software whenever it parses the directory in which it resides.
 
-Settings used in folder.txt:
+Settings used in `folder.txt`:
 
 syntax:
 
@@ -36,7 +36,7 @@ autoplay:			_only in root directory_
 
 maps:
 
-	This property has a different syntax from the other properties available. ‘maps:’ must be the last property in a folder.txt file. All following lines will be parsed as if they are filename maps with syntax as follows:
+	This property has a different syntax from the other properties available. ‘maps:’ must be the last property in a `folder.txt` file. All following lines will be parsed as if they are filename maps with syntax as follows:
 
 maps:
 
@@ -129,7 +129,7 @@ The Arduino library for SD cards uses the original FAT file system. It does this
 		HELLOW~2.TXT
 
 
-    and since the file system does not guarantee alphabetic ordering, the knowledge of which file is which has been lost without examining the contents. To mitigate these problems, when converting events, we add a leading set of 6 incrementing numeric characters to files and use the folder.txt file in each directory to map these 6 characters to a distinct descriptive filename up to 255 characters in length that can contain any ASCII characters.
+    and since the file system does not guarantee alphabetic ordering, the knowledge of which file is which has been lost without examining the contents. To mitigate these problems, when converting events, we add a leading set of 6 incrementing numeric characters to files and use the `folder.txt` file in each directory to map these 6 characters to a distinct descriptive filename up to 255 characters in length that can contain any ASCII characters.
 
 
 
@@ -139,7 +139,7 @@ The Arduino library for SD cards uses the original FAT file system. It does this
     (!k.startsWith("_")) && (k != "TRASHE~1") && (k != "SPOTLI~1") && (k != "FSEVEN~1") && (k != "TEMPOR~1")
     ```
 
-*   There is a limit to how many files and/or directories that one directory can contain of 512 files. In order to work around this, when converting events to I3R format, the converter generates a new folder when it hits a limit of 511 files (to allow for folder.txt). This has an added benefit of not overtaxing the arduino in terms of mapping descriptive file names and in terms of memory required to store strings.
+*   There is a limit to how many files and/or directories that one directory can contain of 512 files. In order to work around this, when converting events to I3R format, the converter generates a new folder when it hits a limit of 511 files (to allow for `folder.txt`). This has an added benefit of not overtaxing the arduino in terms of mapping descriptive file names and in terms of memory required to store strings.
 
 **Logic level shifter**
 
@@ -214,7 +214,7 @@ Parse directory
 bool parseDirText (bool initRun)
 ```
 
-Parse folder.txt
+Parse `folder.txt`
 
 ```cpp
 void play (int type, String arg)
