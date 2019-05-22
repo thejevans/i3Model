@@ -20,7 +20,9 @@ Since update 1.1.0 Every time events are converted to the I3R format, the result
 Settings used in folder.txt:
 
 syntax:
+
 _property:_
+
 _argument_
 
 
