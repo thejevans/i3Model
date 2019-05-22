@@ -49,7 +49,7 @@ maps:
 
 Events are stored on a microSD card connected to the Arduino through the Adafruit TFT screen. The I3R file format is simply a text file with a different extension to allow the Arduino to easily determine event files. The format has multiple sections as determined by the following escape characters:
 
-	q 
+	q, n, x
 
 The character ‘q’ can be found at the top of any I3R file created after version 1.0.0 and denotes the start of the header section of the file. The next five lines contain data pertaining to the event in the file as follows:
 
