@@ -23,7 +23,7 @@ syntax:
 
 _property:_
 
-	_argument_
+	argument
 
 
 has events:			_depreciated_
