@@ -19,6 +19,11 @@ Since update 1.1.0 Every time events are converted to the I3R format, the result
 
 Settings used in `folder.txt`:
 
+syntax:
+
+	property:
+	argument
+
 has events:			_depreciated_
 
 *   This was used to determine whether or not the directory contained events. Better methods were used in later versions, but this option may show up in old files.
