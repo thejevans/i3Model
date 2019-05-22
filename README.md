@@ -5,11 +5,11 @@ The display is a 3D array of 4800 NeoPixel LEDs arranged on one serial data pin.
 
 To prepare files for the Due, there is a python-based converter that takes `.i3` files and converts them to `.I3R` format.
 
-Hardware: Elim Cheung, Greg Sullivan
+Hardware: Elim Thompson (Cheung), Greg Sullivan
 
-Python software: Elim Cheung, John Evans
+Python software: Elim Thompson (Cheung), John Evans
 
-Arduino software: John Evans, Elim Cheung
+Arduino software: John Evans, Elim Thompson (Cheung)
 
 ## Documentation
 
