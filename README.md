@@ -122,7 +122,7 @@ The Arduino library for SD cards uses the original FAT file system. It does this
 	
 		helloworldb.txt
 
-		would then be truncated to:
+	would then be truncated to:
 
 		HELLOW~1.TXT
 
