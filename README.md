@@ -148,112 +148,110 @@ To interface with the model, we use a TFT touchscreen from Adafruit. This screen
 void setup ()
 ```
 
-Initial commands
+*	Initial commands
 
 ```cpp
 TS_Point boop ()
 ```
 
-Handles touch events
+*	Handles touch events
 
 ```cpp
 void wait (int timer)
 ```
 
-Runs loop() a set number of times. Much better than delay.
+*	Runs loop() a set number of times. Much better than delay.
 
 ```cpp
 void loop ()
 ```
 
-Main loop
+*	Main loop
 
 ```cpp
 bool parseDir (bool initRun)
 ```
 
-Parse directory
+*	Parse directory
 
 ```cpp
 bool parseDirText (bool initRun)
 ```
 
-Parse `folder.txt`
+*	Parse `folder.txt`
 
 ```cpp
 void play (int type, String arg)
 ```
 
-Plays an event or test: type = (1 = ledTest(), 2 = displayEvents()), arg = passed to displayEvents()
+*	Plays an event or test: type = (1 = ledTest(), 2 = displayEvents()), arg = passed to displayEvents()
 
 ```cpp
 bool stopCheck (int timer)
 ```
 
-Checks for pause and stop: timer = (< 0 = no timer, > 0 = number of loops)
+*	Checks for pause and stop: timer = (< 0 = no timer, > 0 = number of loops)
 
 ```cpp
 void ledTest ()
 ```
 
-Tests each string with all 3 solid colors and a gradient to make sure that all leds are working and to help with mapping
+*	Tests each string with all 3 solid colors and a gradient to make sure that all leds are working and to help with mapping
 
 ```cpp
 void displayEvents (String filename)
 ```
 
-Display a selected event file: filename = name of event file in working directory to be displayed
+*	Display a selected event file: filename = name of event file in working directory to be displayed
 
 ```cpp
 void setStringColor (int stringNum, byte r, byte g, byte b)
 ```
 
-Displays a solid color on a given string: stringNum = string number (0 - 79), r,g,b = color values
+*	Displays a solid color on a given string: stringNum = string number (0 - 79), r,g,b = color values
 
 ```cpp
 void setStringGrad (int stringNum, byte ir, byte ig, byte ib, byte fr, byte fg, byte fb) 
 ```
 
-Displays a gradient on a given string: stringNum = string number (0 - 79), ir,ig,ib = initial color values, fr,fg,fb = final color values
+*	Displays a gradient on a given string: stringNum = string number (0 - 79), ir,ig,ib = initial color values, fr,fg,fb = final color values
 
 ```cpp
 void clearPixels ()
 ```
 
-Clears all LEDs
+*	Clears all LEDs
 
 ```cpp
 void makeHomeMenu (int selection)
 ```
 
-Make home menu. selection = (0 = no selection, 1 = top left, 2 = top right, 3 = bottom left, 4 = bottom right)
+*	Make home menu. selection = (0 = no selection, 1 = top left, 2 = top right, 3 = bottom left, 4 = bottom right)
 
 ```cpp
 void makeFileMenu (int selection, bool changedDir)
 ```
 
-Make file menu. selection = (0 = no selection, 1 = back, 2 = next), changedDir = passed to displayFiles()
+*	Make file menu. selection = (0 = no selection, 1 = back, 2 = next), changedDir = passed to displayFiles()
 
 ```cpp
 bool displayFiles (bool changedDir)
 ```
 
-Displays file and directory buttons: changedDir = True if the working directory has changed
+*	Displays file and directory buttons: changedDir = True if the working directory has changed
 
 ```cpp
 void pullFile(String filename)
 ```
 
-Pull a file from the Serial port
+*	Pull a file from the Serial port
 
-
-_Could be used to add files to the SD card via USB without reprogramming the Arduino. Not fully implemented._
+	_Could be used to add files to the SD card via USB without reprogramming the Arduino. Not fully implemented._
 
 ```cpp
 void nextPulse()
 ```
 
-signal python: next pulse
+*	signal python: next pulse
 
-
-_Could be used to stream data from an external source to the LEDs, possibly for real-time presentation. Not fully implemented._
+	_Could be used to stream data from an external source to the LEDs, possibly for real-time presentation. Not fully implemented._
