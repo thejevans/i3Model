@@ -62,53 +62,53 @@ q 				_begin_ _header section_
 
 The character ‘q’ can be found at the top of any I3R file created after version 1.0.0 and denotes the start of the header section of the file. The next five lines contain data pertaining to the event in the file as follows:
 
-date of event
+	date of event
 
-event ID
+	event ID
 
-event energy			_in TeV_
+	event energy			_in TeV_
 
-Zenith				_in degrees_
+	Zenith				_in degrees_
 
-PID				_track (1), cascade (0), or undetermined (-1)_
+	PID				_track (1), cascade (0), or undetermined (-1)_
 
-After these lines, the Arduino expects to start seeing LED data in this format:
+	After these lines, the Arduino expects to start seeing LED data in this format:
 
-&#35;&#35;&#35;&#35;				_LED address (0-4799)_
+	####				_LED address (0-4799)_
 
-&#35;&#35;&#35;				_red value (0-255)_
+	###				_red value (0-255)_
 
-&#35;&#35;&#35;				_green value (0-255)_
+	###				_green value (0-255)_
 
-&#35;&#35;&#35;				_blue value (0-255)_
+	###				_blue value (0-255)_
 
-&#35;&#35;&#35;&#35;
+	####
 
-&#35;&#35;&#35;
+	###
 
-&#35;&#35;&#35;
+	###
 
-&#35;&#35;&#35;
+	###
 
-...
+	...
 
-n				_end of time bin_
+	n				_end of time bin_
 
-&#35;&#35;&#35;&#35;
+	####
 
-&#35;&#35;&#35;
+	###
 
-&#35;&#35;&#35;
+	###
 
-&#35;&#35;&#35;
+	###
 
-...
+	...
 
-n
+	n
 
-...
+	...
 
-x				_end of event (depreciated)_
+	x				_end of event (depreciated)_
 
 **Limits of microSD card**
 
@@ -118,15 +118,15 @@ The Arduino library for SD cards uses the original FAT file system. It does this
 
 *   File names are truncated to 8 characters and case sensitivity in file names is lost. This also means that in order to avoid conflicts with the possibility that multiple files could have the same first 8 characters in their file names, the library truncates files with longer filenames to the first 6 characters of their name, followed by ‘~#’ where ‘#’ is an iterated value starting at 1. The following names:
 
-	helloworlda.txt
+		helloworlda.txt
+	
+		helloworldb.txt
 
-	helloworldb.txt
+		would then be truncated to:
 
-	would then be truncated to:
+		HELLOW~1.TXT
 
-	HELLOW~1.TXT
-
-	HELLOW~2.TXT
+		HELLOW~2.TXT
 
 
     and since the file system does not guarantee alphabetic ordering, the knowledge of which file is which has been lost without examining the contents. To mitigate these problems, when converting events, we add a leading set of 6 incrementing numeric characters to files and use the folder.txt file in each directory to map these 6 characters to a distinct descriptive filename up to 255 characters in length that can contain any ASCII characters.
