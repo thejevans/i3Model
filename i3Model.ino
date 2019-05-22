@@ -1,7 +1,7 @@
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 // IceCube LED model
 // Made to use Arduino Due, 4800 NeoPixels, Adafruit 2.8" Capacative Touch Screen, and 3.3V -> 5V logic level converter
-// Authors: John Evans, Elim Cheung
+// Authors: John Evans, Elim Thompson (Cheung)
 // Version: v1.1.0-20170612
 //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
