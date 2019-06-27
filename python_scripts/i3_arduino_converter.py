@@ -39,7 +39,7 @@ smap = { 1:  1, 2: 2 , 3: 3 , 4 :4 , 5 :5 , 6 :6 ,
          68:68, 69:69, 70:70, 71:71, 72:72, 73:73, 74:74,
          75:80, 76:79, 77:78, 78:77, 79:76, 80:75 }
 
-hesedir = '/data/i3store0/users/elims/HESE/'
+hesedir = '/data/i3store0/i3scratch0/users/mlarson/HESE/IC86_2011/data_IC86_2011'
 events={'date':[], 'id':[], 'energy':[], 'zenith':[], 'pid':[], 'hits':[]} ## hits are sorted in time
 
 ##################################################################################
@@ -183,7 +183,7 @@ parser.add_option("-n", "--nevents", type="int", default=0,
 parser.add_option("-v", "--verbose", action="store_true", default=False,
                   help="print info if True")
 parser.add_option("-i", "--indir", type="string",
-                  default='/data/i3store0/users/elims/event_display/',
+                  default=hesedir,
                   help="directory with i3Files from real events")
 parser.add_option("-a", "--infile", type="string",
                   default=None, help="i3File from real events")
@@ -194,7 +194,7 @@ parser.add_option("-b", "--nobestfit", action="store_true", default=False,
 parser.add_option("-o", "--outdir", type = "string",
                   default = 'events',
                   help = "directory to contain I3R files of LED instructions")
-parser.add_option("-b", "--bins", type = "int", default = 32,
+parser.add_option("-t", "--bins", type = "int", default = 32,
                   help = "number of time bins in animation")
 (options, args) = parser.parse_args()
 
@@ -230,8 +230,6 @@ print ('number of input files: {0}'.format(len(infile)))
 ##### Define basic variables
 ##################################################################################
 
-all_events = cPickle.load(open(infile, 'rb')) ## load pickled file
-
 max_brightness = 100. ## set max brightness to avoid burning the LEDs
 
 ## flags for initial operations for PID folders
@@ -261,9 +259,10 @@ for f in infile:
     #### open f and loop
     d = dataio.I3File(f)
     ith = 0 ## for tracking HESE events
-    while True:
-        frame = d.pop_physics ()
+    while d.more():
+        frame = d.pop_frame()
         if frame:
+            if not (frame.Stop == icetray.I3Frame.Physics): continue
             #### if specify nevents, check nth
             if nevents>0 and nth==nevents: break
 
