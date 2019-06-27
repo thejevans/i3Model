@@ -42,7 +42,7 @@
 Adafruit_ILI9341 tft = Adafruit_ILI9341(TFT_CS, TFT_DC, TFT_RST);
 Adafruit_FT6206 ts = Adafruit_FT6206();
 
-Display globalDisplay = Display<MAX_BUTTONS, MAX_LINE_LENGTH, FILES_PER_PAGE>(&tft, &ts);
+Display globalDisplay = Display<MAX_BUTTONS, MAX_LINE_LENGTH, FILES_PER_PAGE>(&tft);
 
 // Array of pixels
 CRGB pixels[NUM_PIXELS];
@@ -86,7 +86,7 @@ void setup () {
 }
 
 void loop () {
-    if (globalDisplay.playTrigger) { playEvent(&globalDisplay, &pixels); }
+    if (globalDisplay.player.trigger()) { playEvent(&globalDisplay, &pixels); }
 
     TS_Point p = boop(&globalDisplay, &ts);
     int button = globalDisplay.buttonPressed(p);
@@ -96,15 +96,15 @@ void loop () {
         break;
 
         case 1: //Replay
-        globalDisplay.playerResetEvent();
+        globalDisplay.player.resetEvent();
         //Continue to case 2 (Play)
 
         case 2: //Play
-        globalDisplay.playerPlay();
+        globalDisplay.player.play();
         break;
 
         case 3: //Pause
-        globalDisplay.playerPause();
+        globalDisplay.player.pause();
         break;
 
         case 4: //Files
@@ -116,29 +116,29 @@ void loop () {
         break;
 
         case 6: //Play Previous
-        globalDisplay.playerPrevious();
+        globalDisplay.player.previous();
         break;
 
         case 7: //Play Next
-        globalDisplay.playerNext();
+        globalDisplay.player.next();
         break;
 
         case 8: //Back (Files)
-        if (globalDisplay.fileMenuPage == 1) { globalDisplay.toHomeScreen(); }
-        else { globalDisplay.fileMenuBack(); }
+        if (globalDisplay.fileMenu.page == 1) { globalDisplay.toHomeScreen(); }
+        else { globalDisplay.fileMenu.back(); }
         break;
 
         case 9: //Next (Files)
-        globalDisplay.fileMenuNext();
+        globalDisplay.fileMenu.next();
         break;
 
         case 10: //Play Mode (Files)
-        globalDisplay.fileMenuToggleMode();
+        globalDisplay.fileMenu.toggleMode();
         break;
 
         default: //Item in File Menu
         int fileIndex = button - 11;
-        if (globalDisplay.fileMenuItemSelected(fileIndex)) { globalDisplay.toPlayer(); }
+        if (globalDisplay.fileMenu.itemSelected(fileIndex)) { globalDisplay.toPlayer(); }
         break;
     }
 }
@@ -194,21 +194,21 @@ void playEvent (Display *workingDisplay, CRGB *leds) {
         }
 
         Serial.println("END OF EVENT");
-        *workingDisplay.playerEndOfEvent();
+        *workingDisplay.player.endOfEvent();
 
         // Check for pause and only wait for 10000 loops
         if (stopCheck(10000, *workingDisplay)) { return; }
 
-    } while(*workingDisplay.replay); // If replay was selected, replay the event
+    } while(*workingDisplay.player.replay); // If replay was selected, replay the event
     clearPixels(*leds);
     return;
 }
 
 bool stopCheck (Display *workingDisplay) {
     wait(3);
-    while (*workingDisplay.paused) {
+    while (*workingDisplay.player.paused) {
         wait(3);
-        if (*workingDisplay.stopped) { return true; }
+        if (*workingDisplay.player.stopped) { return true; }
     }
     return false;
 }
@@ -216,8 +216,8 @@ bool stopCheck (Display *workingDisplay) {
 bool stopCheck (int iterations, Display *workingDisplay) {
     for (int i = 0; i < iterations; i++) {
         wait(3);
-        if (*workingDisplay.stopped) { return true; }
-        if (!*workingDisplay.paused) { break; }
+        if (*workingDisplay.player.stopped) { return true; }
+        if (!*workingDisplay.player.paused) { break; }
     }
     return false;
 }
