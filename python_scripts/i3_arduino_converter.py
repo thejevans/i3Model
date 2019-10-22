@@ -39,7 +39,7 @@ smap = { 1:  1, 2: 2 , 3: 3 , 4 :4 , 5 :5 , 6 :6 ,
          68:68, 69:69, 70:70, 71:71, 72:72, 73:73, 74:74,
          75:80, 76:79, 77:78, 78:77, 79:76, 80:75 }
 
-hesedir = '/data/i3store0/i3scratch0/users/mlarson/HESE/IC86_2011/data_IC86_2011'
+hesedir = "/data/i3store0/users/elims/event_display/"
 events={'date':[], 'id':[], 'energy':[], 'zenith':[], 'pid':[], 'hits':[]} ## hits are sorted in time
 
 ##################################################################################
@@ -183,14 +183,12 @@ parser.add_option("-n", "--nevents", type="int", default=0,
 parser.add_option("-v", "--verbose", action="store_true", default=False,
                   help="print info if True")
 parser.add_option("-i", "--indir", type="string",
-                  default=hesedir,
+                  default="/data/i3store0/users/elims/event_display/",
                   help="directory with i3Files from real events")
 parser.add_option("-a", "--infile", type="string",
                   default=None, help="i3File from real events")
 parser.add_option("-s", "--hese", action="store_true", default=False,
                   help="want to pickle HESE events ?")
-parser.add_option("-b", "--nobestfit", action="store_true", default=False,
-                  help="no loop to get bestfit if true")
 parser.add_option("-o", "--outdir", type = "string",
                   default = 'events',
                   help = "directory to contain I3R files of LED instructions")
@@ -199,10 +197,9 @@ parser.add_option("-t", "--bins", type = "int", default = 32,
 (options, args) = parser.parse_args()
 
 ishese    = options.hese
-infile    = sorted(glob(hesedir+'*/*.i3.bz2')) if ishese else [options.infile] if options.infile else sorted(glob(options.indir+'*.i3*'))
+infile    = sorted(glob(hesedir+'*.i3*')) if ishese else [options.infile] if options.infile else sorted(glob(options.indir+'*.i3*'))
 verbose   = options.verbose
 nevents   = options.nevents
-nobestfit = options.nobestfit
 outdir    = options.outdir
 bins      = options.bins
 
@@ -223,7 +220,7 @@ print ('in_file: {0}'.format(infile))
 print ('out_dir: {0}'.format(outdir))
 print (' ')
 
-reco_particle = 'MillipedeStarting2ndPass' if ishese else 'OnlineL2_BestFit_MuEx'
+reco_particle = 'OnlineL2_BestFit_MuEx'
 print ('number of input files: {0}'.format(len(infile)))
 
 ##################################################################################
@@ -242,6 +239,8 @@ j = 0
 k = 0
 l = 0
 m = 0
+p = 0
+newdir = True
 
 ##################################################################################
 ##### Loop through events to pull event info
@@ -252,75 +251,46 @@ runs = []
 for f in infile:
     if verbose: print ('{0}'.format(f))
 
-    #### for hese events, 1 f = 1 data event;
-    #### need to find the best fit event from each f
-    minllh = np.inf
-
     #### open f and loop
     d = dataio.I3File(f)
-    ith = 0 ## for tracking HESE events
     while d.more():
         frame = d.pop_frame()
-        if frame:
-            if not (frame.Stop == icetray.I3Frame.Physics): continue
-            #### if specify nevents, check nth
-            if nevents>0 and nth==nevents: break
+        if not (frame.Stop == icetray.I3Frame.Physics): continue
+        
+        #### if specify nevents, check nth
+        if nevents>0 and nth==nevents: break
 
-            #### if ishese, only 1 event from each run
-            header = frame['I3EventHeader']
-            if ishese and header.run_id in runs: break
+        #### if ishese, only 1 event from each run
+        header = frame['I3EventHeader']
+        if ishese and header.run_id in runs: break
 
-            #### if ishese, best fit = first event if
-            #### first P frame has 'best_fit' in sub event stream
-            if ishese:
-                if ith==0:
-                    if 'best_fit' in header.sub_event_stream or nobestfit:
-                        date, ID, energy, zenith, hits = get_event_info (frame, header)
-                        pid = 1 if 'track' in f else 0
-                        events['date'].append (date)
-                        events['id'].append (ID)
-                        events['energy'].append (energy)
-                        events['zenith'].append (zenith)
-                        events['pid'].append (pid)
-                        events['hits'].append (hits)
-                        runs.append (header.run_id)
-                        nth += 1
-                        break
-                llh = frame['MillipedeStarting2ndPassFitParams'].logl
-                ith += 1
-                if llh < minllh:
-                    minllh = llh
-                    date, ID, energy, zenith, hits = get_event_info (frame, header)
-                continue
-            else:
-                if not frame.Has (reco_particle): continue
-                date, ID, energy, zenith, hits = get_event_info (frame, header)
-                events['date'].append (date)
-                events['id'].append (ID)
-                events['energy'].append (energy)
-                events['zenith'].append (zenith)
-                events['pid'].append (-1)
-                events['hits'].append (hits)
-                runs.append (header.run_id)
-                nth += 1
+        #### if ishese, events split into tracks/cascades, else undetermined 
+        if ishese:
+            date, ID, energy, zenith, hits = get_event_info (frame, header)
+            pid = 1 if 'track' in f else 0
+            events['date'].append (date)
+            events['id'].append (ID)
+            events['energy'].append (energy)
+            events['zenith'].append (zenith)
+            events['pid'].append (pid)
+            events['hits'].append (hits)
+            runs.append (header.run_id)
+            nth += 1
+            break #only 1 event per file
         else:
-            if ishese:
-                pid = 1 if 'track' in f else 0
-                if verbose:
-                    print ('date, ID           : {0}, {1}'.format(date, ID))
-                    print ('energy, zenith, pid: {0} TeV, {1} degrees, {2}'.format(energy, zenith, pid))
-                    print ('number of hits     : {0}'.format(len(hits)))
-
-                events['date'].append (date)
-                events['id'].append (ID)
-                events['energy'].append (energy)
-                events['zenith'].append (zenith)
-                events['pid'].append (pid)
-                events['hits'].append (hits)
-                runs.append (header.run_id)
-                nth += 1
-            break
+            if not frame.Has (reco_particle): continue
+            date, ID, energy, zenith, hits = get_event_info (frame, header)
+            events['date'].append (date)
+            events['id'].append (ID)
+            events['energy'].append (energy)
+            events['zenith'].append (zenith)
+            events['pid'].append (-1)
+            events['hits'].append (hits)
+            print(np.shape(events['hits'][nth]))
+            runs.append (header.run_id)
+            nth += 1
     print ('{0} collected {1} events ...'.format(f, nth))
+    print (np.shape(events['hits']))
     d.close ()
 
 ##################################################################################
@@ -341,6 +311,7 @@ if not os.path.exists(os.path.dirname(outdir + 'all/')):
             raise
 
 ## start all folder.txt
+text.write("ALL\nAll\n\n")
 allText = open(outdir + 'all/folder.txt', 'w')
 allText.write("contains events:\ntrue\n\nmaps:\n")
 
@@ -396,7 +367,7 @@ for i, event in enumerate(events['hits']):
             firstCascade = False
 
         cascadeText.write("%06d\n%s\n\n" % (i,events['id'][i]))
-        shutil.copy(outdir + 'all/' + "%06d" % i + '-' + events['id'][i] + '.I3R', outdir + 'cascades/')
+        shutil.copy(outdir + 'all/' + '/' + "%06d" % i + '-' + events['id'][i] + '.I3R', outdir + 'cascades/')
         l += 1
 
     ## if undetermined, copy I3R file and add to undetermined folder.txt
@@ -415,7 +386,7 @@ for i, event in enumerate(events['hits']):
             firstUndetermined = False
 
         undeterminedText.write("%06d\n%s\n\n" % (i,events['id'][i]))
-        shutil.copy(outdir + 'all/' + "%06d" % i + '-' + events['id'][i] + '.I3R', outdir + 'undetermined/')
+        shutil.copy(outdir + 'all/' + '/' + "%06d" % i + '-' + events['id'][i] + '.I3R', outdir + 'undetermined/')
         m += 1
 
 ## close opened folder.txt files
