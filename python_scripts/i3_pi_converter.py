@@ -56,7 +56,7 @@ def flatten (dom, string):
 ##################################################################################
 ##### Converts event to Array
 ##################################################################################
-def eventToArray (event, maxBrightness, totalBins):
+def eventToArray (event, maxBrightness):
     max_charge = np.sqrt(max(event.T[3]))
     brightness = (np.sqrt(event.T[3]) * maxBrightness / max_charge).astype(int)
 
@@ -192,8 +192,6 @@ parser.add_option("-s", "--hese", action="store_true", default=False,
 parser.add_option("-o", "--outdir", type = "string",
                   default = 'events',
                   help = "directory to contain I3R files of LED instructions")
-parser.add_option("-t", "--bins", type = "int", default = 32,
-                  help = "number of time bins in animation")
 (options, args) = parser.parse_args()
 
 ishese    = options.hese
@@ -201,7 +199,6 @@ infile    = sorted(glob(hesedir+'*.i3*')) if ishese else [options.infile] if opt
 verbose   = options.verbose
 nevents   = options.nevents
 outdir    = options.outdir
-bins      = options.bins
 
 outdir = infile[0:infile.find('.')] if outdir == "events" else outdir
 outdir = outdir if outdir.startswith(('/','.','~')) else "./" + outdir
@@ -322,7 +319,7 @@ for i, event in enumerate(events['hits']):
 
     output.write("q\n%s\n%s\n%s\n%s\n%s\n" % (events['date'][i], events['id'][i], events['energy'][i], events['zenith'][i], events['pid'][i]))
 
-    for item in eventToArray(event, max_brightness, bins):
+    for item in eventToArray(event, max_brightness):
         output.write("%s\n" % item)
 
     output.close()
