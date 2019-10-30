@@ -341,7 +341,7 @@ for i, event in enumerate(events['hits']):
                     if exc.errno != errno.EEXIST:
                         raise
 
-                        trackText = open(outdir + 'tracks/folder.txt', 'w')
+            trackText = open(outdir + 'tracks/folder.txt', 'w')
             trackText.write("contains events:\ntrue\n\nmaps:\n")
             firstTrack = False
 
