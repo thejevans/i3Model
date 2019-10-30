@@ -314,15 +314,16 @@ allText.write("contains events:\ntrue\n\nmaps:\n")
 
 for i, event in enumerate(events['hits']):
 
-    ## make I3R file
-    output = open(outdir + 'all/' + "%06d" % i + '-' + events['id'][i] + '.I3R', 'w')
+    ## make npy and txt files
+    output1 = open(outdir + 'all/' + "%06d" % i + '-' + events['id'][i] + '.txt', 'w')
+    output1.write("q\n%s\n%s\n%s\n%s\n%s\n" % (events['date'][i], events['id'][i], events['energy'][i], events['zenith'][i], events['pid'][i]))
 
-    output.write("q\n%s\n%s\n%s\n%s\n%s\n" % (events['date'][i], events['id'][i], events['energy'][i], events['zenith'][i], events['pid'][i]))
+    output1.close()
 
-    for item in eventToArray(event, max_brightness):
-        output.write("%s\n" % item)
+    output2 = open(outdir + 'all/' + "%06d" % i + '-' + events['id'][i] + '.npy', 'w')
+    np.save(output2, events['hits'][i])
 
-    output.close()
+    output2.close()
 
     j += 1
 
@@ -340,12 +341,12 @@ for i, event in enumerate(events['hits']):
                     if exc.errno != errno.EEXIST:
                         raise
 
-            trackText = open(outdir + 'tracks/folder.txt', 'w')
+                        trackText = open(outdir + 'tracks/folder.txt', 'w')
             trackText.write("contains events:\ntrue\n\nmaps:\n")
             firstTrack = False
 
         trackText.write("%06d\n%s\n\n" % (i,events['id'][i]))
-        shutil.copy(outdir + 'all/' + "%06d" % i + '-' + events['id'][i] + '.I3R', outdir + 'tracks/')
+        shutil.copy(outdir + 'all/' + "%06d" % i + '-' + events['id'][i] + '.txt', outdir + 'tracks/')
         k += 1
 
     ## if cascade, copy I3R file and add to cascades folder.txt
@@ -364,7 +365,7 @@ for i, event in enumerate(events['hits']):
             firstCascade = False
 
         cascadeText.write("%06d\n%s\n\n" % (i,events['id'][i]))
-        shutil.copy(outdir + 'all/' + '/' + "%06d" % i + '-' + events['id'][i] + '.I3R', outdir + 'cascades/')
+        shutil.copy(outdir + 'all/' + '/' + "%06d" % i + '-' + events['id'][i] + '.txt', outdir + 'cascades/')
         l += 1
 
     ## if undetermined, copy I3R file and add to undetermined folder.txt
@@ -383,7 +384,7 @@ for i, event in enumerate(events['hits']):
             firstUndetermined = False
 
         undeterminedText.write("%06d\n%s\n\n" % (i,events['id'][i]))
-        shutil.copy(outdir + 'all/' + '/' + "%06d" % i + '-' + events['id'][i] + '.I3R', outdir + 'undetermined/')
+        shutil.copy(outdir + 'all/' + '/' + "%06d" % i + '-' + events['id'][i] + '.txt', outdir + 'undetermined/')
         m += 1
 
 ## close opened folder.txt files
