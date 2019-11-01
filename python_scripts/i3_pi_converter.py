@@ -238,6 +238,8 @@ m = 0
 p = 0
 newdir = True
 
+datatypes = np.dtype([('time', int), ('dom', int), ('string', int), ('charge', int)])
+
 ##################################################################################
 ##### Loop through events to pull event info
 ##################################################################################
@@ -290,7 +292,7 @@ for f in infile:
     d.close ()
 
 ##################################################################################
-##### Send events to I3R files and create folder.txt files
+##### Send events to txt and npy files and create folder.txt files
 ##################################################################################
 
 ## make main folder.txt
@@ -307,7 +309,6 @@ if not os.path.exists(os.path.dirname(outdir + 'all/')):
             raise
 
 ## start all folder.txt
-text.write("ALL\nAll\n\n")
 allText = open(outdir + 'all/folder.txt', 'w')
 allText.write("contains events:\ntrue\n\nmaps:\n")
 
@@ -320,7 +321,9 @@ for i, event in enumerate(events['hits']):
     output1.close()
 
     output2 = open(outdir + 'all/' + "%06d" % i + '-' + events['id'][i] + '.npy', 'w')
-    np.save(output2, events['hits'][i])
+    data = np.rec.array(events['hits'][i].T, dtype = datatypes)[0]
+    print('time', data['time'].shape)
+    np.save(output2, data)
 
     output2.close()
 
