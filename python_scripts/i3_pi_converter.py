@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 from __future__ import print_function
 ######################################################################################
-#### Authors: John Evans & Elim Cheung
+#### Authors: John Evans, Elim Cheung, Bennett Brinson
 ####
 #### python command:
-#### python i3_arduino_converter.py --nevents <num of events> --infile <input i3 files>
+#### python i3_pi_oconverter.py --nevents <num of events> --infile <input i3 files> --indir <input directory of i3 files>
 ####                                --outdir <directory to contain I3R files of LED instructions>
-####                                --bins <number of time bins in animation>
 ####                                (--verbose --hese)
 ######################################################################################
 
@@ -347,6 +346,7 @@ for i, event in enumerate(events['hits']):
 
         trackText.write("%06d\n%s\n\n" % (i,events['id'][i]))
         shutil.copy(outdir + 'all/' + "%06d" % i + '-' + events['id'][i] + '.txt', outdir + 'tracks/')
+        shutil.copy(outdir + 'all/' + "%06d" % i + '-' + events['id'][i] + '.npy', outdir + 'tracks/')
         k += 1
 
     ## if cascade, copy I3R file and add to cascades folder.txt
@@ -366,6 +366,7 @@ for i, event in enumerate(events['hits']):
 
         cascadeText.write("%06d\n%s\n\n" % (i,events['id'][i]))
         shutil.copy(outdir + 'all/' + '/' + "%06d" % i + '-' + events['id'][i] + '.txt', outdir + 'cascades/')
+        shutil.copy(outdir + 'all/' + '/' + "%06d" % i + '-' + events['id'][i] + '.npy', outdir + 'cascades/')
         l += 1
 
     ## if undetermined, copy I3R file and add to undetermined folder.txt
@@ -385,6 +386,7 @@ for i, event in enumerate(events['hits']):
 
         undeterminedText.write("%06d\n%s\n\n" % (i,events['id'][i]))
         shutil.copy(outdir + 'all/' + '/' + "%06d" % i + '-' + events['id'][i] + '.txt', outdir + 'undetermined/')
+        shutil.copy(outdir + 'all/' + '/' + "%06d" % i + '-' + events['id'][i] + '.npy', outdir + 'undetermined/')
         m += 1
 
 ## close opened folder.txt files
