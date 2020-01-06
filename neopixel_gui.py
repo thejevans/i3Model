@@ -7,10 +7,12 @@ import adafruit_dotstar as dotstar
 from neopixel import *
 import threading
 import multiprocessing as mp
+import numpy as np
 
 #define default number of LEDs and max brightness
 numpix = 4800
-brightness = 51
+brightness = 255
+frames = 32
 
 #define parameters for navigating directories
 pg = 0
@@ -29,8 +31,8 @@ init_flag = True
 m = 0
 
 #Define default directory
-home_dir = "/home/pi/Documents/IceCubeModel/test_run"
-infile = "000000-118800_29085092_0.I3R"
+home_dir = "/home/pi/Documents/IceCubeModel/data"
+infile = "000000-126598_56835367_0.npy"
 event_file = ''
 
 parser = ArgumentParser()
@@ -40,6 +42,7 @@ parser.add_argument("-p", "--pixels", type = int, default = numpix, help = "Numb
 parser.add_argument("-B", "--brightness", type = float, default = brightness, help = "Brightness of LEDs")
 parser.add_argument("-P", "--neopixel_pin", default = 18, help = "Single pin for Neopixels")
 parser.add_argument("-F", "--infile", type = str, default = infile)
+parser.add_argument("-f", "--frames", type = int, default = frames)
 
 options = parser.parse_args()
 
@@ -49,6 +52,7 @@ bright = options.brightness
 file_dir = options.indir
 neopin = options.neopixel_pin
 infile = options.infile
+frames = options.frames
 
 #define LEDs
 pix = Adafruit_NeoPixel(numpix, neopin, brightness = bright)
@@ -80,6 +84,11 @@ def natural_sort(x):
 def get_subdir(a_dir):
     dirs = os.listdir(a_dir)
     dirs = natural_sort(dirs)
+    i = 0
+    while i < len(dirs):
+        if dirs[i][-4:] == '.txt':
+            dirs.pop(i)
+        i += 1
     return dirs
 
 #function for obtaining just files
@@ -87,7 +96,94 @@ def get_files(a_dir):
     fs = (file for file in os.listdir(a_dir)
           if os.path.isfile(os.path.join(a_dir, file)))
     fs = natural_sort(fs)
-    return fs
+    if fs[-4:] == '.I3R':
+        return fs
+    else:
+        flist = []
+        for f in fs:
+            if f[-4:] == '.npy':
+                flist.append(f)
+        return flist
+
+def flatten (dom, string):
+    if string % 2 == 1:
+        led = 60 * string - dom
+    else:
+        led = 60 * (string - 1) + (dom - 1);
+
+    return led
+
+def binning(event, bright, bins):
+    if bins > int(len(event['time'])):
+        bins = int(len(event['time']))
+
+    max_charge = np.sqrt(max(event['charge']))
+    brightness = (np.sqrt(event['charge']) * bright / max_charge).astype(int)
+    tbin       = np.floor(np.arange(len(event['time'])) / int(len(event['time'])) * bins)
+    wavelength = (700. - 300. * tbin / bins).astype(int)
+
+    eventArray = [] 
+    frame = 0
+
+    for i, pulse in enumerate(event):
+        [r, g, b] = wav2RGB(wavelength[i])
+
+        r  *= brightness[i]
+        g  *= brightness[i]
+        b  *= brightness[i]
+        led = flatten(pulse[1], pulse[2])
+        
+        eventArray.append([led, int(r), int(g), int(b), int(frame)])
+
+        if (i==len(event)-1) or (not wavelength[i]==wavelength[i+1]):
+            frame += 1        
+
+    return eventArray
+
+def wav2RGB(wavelength):
+    w = int(wavelength)
+
+    # color
+    if w >= 380 and w < 440:
+        R = -(w - 440.) / (440. - 350.)
+        G = 0.0
+        B = 1.0
+    elif w >= 440 and w < 490:
+        R = 0.0
+        G = (w - 440.) / (490. - 440.)
+        B = 1.0
+    elif w >= 490 and w < 510:
+        R = 0.0
+        G = 1.0
+        B = -(w - 510.) / (510. - 490.)
+    elif w >= 510 and w < 580:
+        R = (w - 510.) / (580. - 510.)
+        G = 1.0
+        B = 0.0
+    elif w >= 580 and w < 645:
+        R = 1.0
+        G = -(w - 645.) / (645. - 580.)
+        B = 0.0
+    elif w >= 645 and w <= 780:
+        R = 1.0
+        G = 0.0
+        B = 0.0
+    else:
+        R = 0.0
+        G = 0.0
+        B = 0.0
+
+    # intensity correction
+    if w >= 380 and w < 420:
+        SSS = 0.3 + 0.7*(w - 350) / (420 - 350)
+    elif w >= 420 and w <= 700:
+        SSS = 1.0
+    elif w > 700 and w <= 780:
+        SSS = 0.3 + 0.7*(780 - w) / (780 - 700)
+    else:
+        SSS = 0.0
+
+    return [SSS*R, SSS*G, SSS*B]
 
 class Neo_GUI(Tk):
     
@@ -104,8 +200,10 @@ class Neo_GUI(Tk):
         if init_flag == True:
             global event_file
             global file_dir
+            global lvl
             event_file = infile
-            file_dir = options.indir + "/0_all"
+            file_dir = options.indir + "/test_run_8/all"
+            lvl = 2
             self.show_frame("Player")
         else:
             self.show_frame("MainMenu")
@@ -332,7 +430,7 @@ class File_Menu(Frame):
             f.pack(side = LEFT)
             
             current_file = files[i]
-            if current_file[-4:] == '.I3R':
+            if current_file[-4:] == '.I3R' or current_file[-4:] == '.npy':
                 command = lambda x = current_file: play_event(x)
                 color = "red"
             else: 
@@ -394,46 +492,80 @@ class Player(Frame):
         Frame.__init__(self, parent)
         self.controller = controller
         
+        var = IntVar(self, value = m)
         files = get_files(file_dir)
         index = files.index(event_file)
         
-        with open(file_dir + '/' + event_file, 'r') as event:
-            pulses = [line.rstrip('\n') for line in event]
-        pulses = pulses[6:]
-        LEDs = []
-        R = []
-        G = []
-        B = []
-        frame = []
-        hits = []
-        i = 0
-        j = 0
-        while True:
-            while pulses[i] != 'n':
-                if len(pulses[i]) > 1 and pulses[i][-2] == '.':
-                    pulses[i] = pulses[i][:-2]
-                if len(pulses[i+1]) > 1 and pulses[i+1][-2] == '.':
-                    pulses[i+1] = pulses[i+1][:-2]
-                if len(pulses[i+2]) > 1 and pulses[i+2][-2] == '.':
-                    pulses[i+2] = pulses[i+2][:-2]
-                if len(pulses[i+3]) > 1 and pulses[i+3][-2] == '.':
-                    pulses[i+3] = pulses[i+3][:-2]
-                LEDs.append(int(pulses[i]))
-                R.append(int(pulses[i+1]))
-                G.append(int(pulses[i+2]))
-                B.append(int(pulses[i+3]))
-                i += 4
-            frame = (LEDs, R, G, B)
-            hits.append(frame)
+        if event_file[-4:] == '.I3R':
+            with open(file_dir + '/' + event_file, 'r') as event:
+                pulses = [line.rstrip('\n') for line in event]
+            pulses = pulses[6:]
             LEDs = []
             R = []
             G = []
             B = []
             frame = []
-            j += 1
-            if i == len(pulses) - 1:
-                break
-            i += 1
+            hits = []
+            i = 0
+            j = 0
+            while True:
+                while pulses[i] != 'n':
+                    if len(pulses[i]) > 1 and pulses[i][-2] == '.':
+                        pulses[i] = pulses[i][:-2]
+                    if len(pulses[i+1]) > 1 and pulses[i+1][-2] == '.':
+                        pulses[i+1] = pulses[i+1][:-2]
+                    if len(pulses[i+2]) > 1 and pulses[i+2][-2] == '.':
+                        pulses[i+2] = pulses[i+2][:-2]
+                    if len(pulses[i+3]) > 1 and pulses[i+3][-2] == '.':
+                        pulses[i+3] = pulses[i+3][:-2]
+                    LEDs.append(int(pulses[i]))
+                    R.append(int(pulses[i+1]))
+                    G.append(int(pulses[i+2]))
+                    B.append(int(pulses[i+3]))
+                    i += 4
+                frame = (LEDs, R, G, B)
+                hits.append(frame)
+                LEDs = []
+                R = []
+                G = []
+                B = []
+                frame = []
+                j += 1
+                if i == len(pulses) - 1:
+                    break
+                i += 1
+        else:
+            fl =  np.load(file_dir + '/' + event_file)
+            pulses = binning(fl, brightness, frames)
+            
+            LEDs = []
+            R = []
+            G = []
+            B = []
+            frame = []
+            hits = []
+            for i in range(0, len(pulses)):
+                LEDs.append(int(pulses[i][0]))
+                R.append(int(pulses[i][1]))
+                G.append(int(pulses[i][2]))
+                B.append(int(pulses[i][3]))
+                if i != len(pulses) - 1:
+                    if pulses[i][4] != pulses[i+1][4]:
+                        frame = (LEDs, R, G, B)
+                        hits.append(frame)
+                        LEDs = []
+                        R = []
+                        G = []
+                        B = []
+                        frame = []
+                else:
+                    frame = (LEDs, R, G, B)
+                    hits.append(frame)
+                    LEDs = []
+                    R = []
+                    G = []
+                    B = []
+                    frame = []
                         
         if autoplay_flag == False:
             global autoplay
@@ -520,11 +652,14 @@ class Player(Frame):
             global pause_flag
             global button_flag
             global a_flag
+            global m
             stop_flag = True
             play_flag = True
             autoplay_flag = True
             if a == True:
                 pause_flag = False
+            else:
+                m = var.get()
             controller.show_frame("Player")
             button_flag = False
             #a_flag = False
@@ -553,6 +688,13 @@ class Player(Frame):
                 m = 0
                 d_int(pix)
             else:
+                d_int(pix)
+                for i in range(0, m):
+                    for j in range(0, len(hits[i][0])):
+                        ind = hits[i][0][j] -1
+                        color = Color(hits[i][2][j], hits[i][1][j], hits[i][3][j])
+                        pix.setPixelColor(ind, color)
+                pix.show()
                 pause_flag = False
             a_flag = True
             while m < len(hits) and play_flag == True:
@@ -610,11 +752,11 @@ class Player(Frame):
             b1 = Frame(self)
             b1.pack(side = TOP, fill = X)
             
-            f0 = Frame(b0, width = 25, height = 125)
+            f0 = Frame(b0, width = 25, height = 100)
             f0.pack_propagate(0)
             f0.pack(side = LEFT)
             
-            f1 = Frame(b0, width = 250, height = 125)
+            f1 = Frame(b0, width = 250, height = 100)
             f1.pack_propagate(0)
             f1.pack(side = LEFT)
             
@@ -628,7 +770,7 @@ class Player(Frame):
                 ply = Button(f1, text = "Replay Event", bg = "green", command = lambda x = True: play(x))
                 ply.pack(fill = BOTH, expand = True)
             
-            f2 = Frame(b0, width = 250, height = 125)
+            f2 = Frame(b0, width = 250, height = 100)
             f2.pack_propagate(0)
             f2.pack(side = LEFT)
             
@@ -639,7 +781,7 @@ class Player(Frame):
                 back = Message(f2, text = "Please Pause or Stop to return to the menu", bg = "blue")
                 back.pack(fill = BOTH, expand = True)
             
-            f3 = Frame(b0, width = 250, height = 125)
+            f3 = Frame(b0, width = 250, height = 100)
             f3.pack_propagate(0)
             f3.pack(side = LEFT)
             
@@ -657,11 +799,11 @@ class Player(Frame):
             b2 = Frame(self)
             b2.pack(side = TOP, fill = X)
             
-            f4 = Frame(b2, width = 25, height = 125)
+            f4 = Frame(b2, width = 25, height = 100)
             f4.pack_propagate(0)
             f4.pack(side = LEFT)
             
-            f5 = Frame(b2, width = 250, height = 125)
+            f5 = Frame(b2, width = 250, height = 100)
             f5.pack_propagate(0)
             f5.pack(side = LEFT)
             
@@ -673,7 +815,7 @@ class Player(Frame):
                     prev = Message(f5, text = "Please Pause or Stop to change events", bg = "blue")
                     prev.pack(fill = BOTH, expand = True)
                 
-            f6 = Frame(b2, width = 250, height = 125)
+            f6 = Frame(b2, width = 250, height = 100)
             f6.pack_propagate(0)
             f6.pack(side = LEFT)
             
@@ -686,7 +828,7 @@ class Player(Frame):
                 auto.config(command = lambda x = auto: autop(x))
                 auto.pack(fill = BOTH, expand = True)
             
-            f7 = Frame(b2, width = 250, height = 125)
+            f7 = Frame(b2, width = 250, height = 100)
             f7.pack_propagate(0)
             f7.pack(side = LEFT)
             
@@ -697,6 +839,18 @@ class Player(Frame):
                 else:
                     nxt = Message(f7, text = "Please Pause or Stop to change events", bg = "blue")
                     nxt.pack(fill = BOTH, expand = True)
+                
+            if pause_flag == True:
+                label2 = Label(self, text = "Select Frame", font = controller.title_font)
+                label2.pack(side = TOP, fill = X, pady = 10)
+                
+                b3 = Frame(self, width = 800, height = 50)
+                b3.pack_propagate(0)
+                b3.pack(side = TOP)
+                
+                slide = Scale(b3, from_ = 1, to = len(hits), orient = HORIZONTAL, width = 40, sliderlength = 60, variable = var)
+                slide.pack(fill = BOTH, expand = True)
+                slide.set(m)
             
         if __name__ == '__main__':
             x1 = threading.Thread(target = page)
